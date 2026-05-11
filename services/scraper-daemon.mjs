@@ -390,6 +390,88 @@ async function searchEtsy(keyword, limit) {
   }
 }
 
+// ── HeyEtsy widget extraction ──────────────────────────────────────────────────
+// Yêu cầu HeyEtsy extension được cài trong Chrome profile của daemon.
+// Cài HeyEtsy: Chạy daemon → Chrome mở → vào Chrome Web Store → cài HeyEtsy → đăng nhập
+async function extractHeyEtsyData(page) {
+  try {
+    // Chờ HeyEtsy widget xuất hiện (tối đa 10 giây)
+    await page.waitForFunction(
+      () => {
+        const body = document.body?.innerText ?? '';
+        return body.includes('HeyEtsy') && (body.includes('Sold') || body.includes('Views'));
+      },
+      { timeout: 10_000 }
+    );
+
+    return await page.evaluate(() => {
+      // Tìm element chứa HeyEtsy widget
+      const allEls = Array.from(document.querySelectorAll('*'));
+      const widget = allEls.find(el =>
+        el.children.length >= 2 &&
+        (el.textContent ?? '').includes('HeyEtsy') &&
+        (el.textContent ?? '').includes('Sold')
+      );
+      if (!widget) return null;
+      const text = widget.innerText ?? widget.textContent ?? '';
+
+      function parseNum(str) {
+        if (!str) return 0;
+        const s = str.toString().replace(/,/g, '').trim();
+        if (/k$/i.test(s)) return Math.round(parseFloat(s) * 1000);
+        if (/m$/i.test(s)) return Math.round(parseFloat(s) * 1_000_000);
+        return parseFloat(s) || 0;
+      }
+
+      // Sold daily / total: "1+ Sold", "1994+ Sold"
+      const soldMatches = [...text.matchAll(/(\d[\d,.k]*)\+\s*Sold/gi)];
+      const soldDaily = soldMatches[0] ? parseNum(soldMatches[0][1]) : 0;
+      const soldTotal = soldMatches[1] ? parseNum(soldMatches[1][1]) : soldDaily;
+
+      // Views daily: "44+ Views"
+      const viewsDailyMatch = text.match(/(\d[\d,.k]*)\+\s*Views/i);
+      const viewsDaily = viewsDailyMatch ? parseNum(viewsDailyMatch[1]) : 0;
+
+      // Revenue: "48.8K USD" or "48,800 USD"
+      const revenueMatch = text.match(/([\d,.]+[kKmM]?)\s*USD/);
+      const revenue = revenueMatch ? parseNum(revenueMatch[1]) : 0;
+
+      // Views table: "105 (Avg)  88,336"
+      const viewsAvgMatch = text.match(/Views[^\n]*?([\d,]+)\s*\(Avg\)/i);
+      const viewsTotalMatch = text.match(/Views[^\n]*?\(Avg\)\s*([\d,]+)/i);
+      const viewsAvg = viewsAvgMatch ? parseNum(viewsAvgMatch[1]) : 0;
+      const viewsTotal = viewsTotalMatch ? parseNum(viewsTotalMatch[1]) : 0;
+
+      // Favorites: "2.77%  2,448"
+      const favRateMatch = text.match(/Favorites[^\n]*?([\d.]+)%/i);
+      const favCountMatch = text.match(/Favorites[^\n]*?%\s*([\d,]+)/i);
+      const favRate = favRateMatch ? parseFloat(favRateMatch[1]) : 0;
+      const favorites = favCountMatch ? parseNum(favCountMatch[1]) : 0;
+
+      // Created: "23/01/2024"
+      const createdMatch = text.match(/Created[^\n]*?(\d{2}\/\d{2}\/\d{4})/i);
+
+      // Updated: line after "Updated"
+      const updatedMatch = text.match(/Updated[^\n\r]*?([\w\s]+ago|today|yesterday)/i);
+
+      return {
+        soldDaily,
+        soldTotal,
+        viewsDaily,
+        revenue,
+        viewsAvg,
+        viewsTotal,
+        favRate,
+        favorites,
+        created: createdMatch?.[1] ?? null,
+        updated: updatedMatch?.[1]?.trim() ?? null,
+      };
+    });
+  } catch {
+    return null;
+  }
+}
+
 // ── HTTP Server ───────────────────────────────────────────────────────────────
 function sendJSON(res, status, data) {
   const body = JSON.stringify(data);
@@ -453,6 +535,38 @@ function startHttpServer() {
       }
     }
 
+    // ── GET /heyetsy?url=... ─────────────────────────────────────────────────
+    if (url.pathname === '/heyetsy') {
+      const listingUrl = url.searchParams.get('url') || '';
+      if (!listingUrl || !listingUrl.includes('etsy.com')) {
+        return sendJSON(res, 400, { error: 'missing_or_invalid_url' });
+      }
+      if (!state.browser) {
+        return sendJSON(res, 503, { error: 'browser_not_ready' });
+      }
+      let page = null;
+      try {
+        page = await state.browser.newPage();
+        log(`🔎 HeyEtsy fetch: ${listingUrl.slice(0, 60)}...`);
+        await page.goto(listingUrl, { waitUntil: 'domcontentloaded', timeout: 30_000 });
+        await humanScroll(page, 400);
+        const heyData = await extractHeyEtsyData(page);
+        if (!heyData) {
+          log('⚠️  HeyEtsy widget không tìm thấy. Đã cài extension chưa?');
+          return sendJSON(res, 404, {
+            error: 'heyetsy_not_found',
+            hint: 'Cài HeyEtsy extension trong Chrome profile của daemon rồi thử lại',
+          });
+        }
+        log(`   ✅ HeyEtsy: sold=${heyData.soldTotal}, views=${heyData.viewsTotal}`);
+        return sendJSON(res, 200, heyData);
+      } catch (err) {
+        return sendJSON(res, 500, { error: err.message });
+      } finally {
+        if (page) await page.close().catch(() => {});
+      }
+    }
+
     sendJSON(res, 404, { error: 'not_found' });
   });
 
@@ -460,7 +574,8 @@ function startHttpServer() {
     log(`\n🌐 HTTP API on http://localhost:${PORT}`);
     log('   GET /health         — trạng thái daemon');
     log('   GET /cookie         — DataDome cookie hiện tại');
-    log('   GET /search?q=...   — search Etsy\n');
+    log('   GET /search?q=...   — search Etsy');
+    log('   GET /heyetsy?url=.  — HeyEtsy widget data cho 1 listing\n');
   });
 
   server.on('error', (err) => {

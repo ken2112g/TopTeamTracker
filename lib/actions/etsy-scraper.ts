@@ -357,3 +357,33 @@ export async function scrapeEtsyListing(url: string): Promise<ScrapedListing | {
 
   return { etsyListingId: listingId, url, title, shopName, currentPrice: price, oldPrice: null, rating, reviewsCount, imageUrl, favoritesCount: favorites, currency, country: 'US', etsyCreatedAt: null, etsyUpdatedAt: null };
 }
+
+// ── HeyEtsy data per listing ────────────────────────────────────────────────
+export interface HeyEtsyData {
+  soldDaily: number;
+  soldTotal: number;
+  viewsDaily: number;
+  revenue: number;
+  viewsAvg: number;
+  viewsTotal: number;
+  favRate: number;
+  favorites: number;
+  created: string | null;
+  updated: string | null;
+}
+
+export async function getHeyEtsyData(listingUrl: string): Promise<HeyEtsyData | { error: string }> {
+  try {
+    const res = await fetch(
+      `${DAEMON_URL}/heyetsy?url=${encodeURIComponent(listingUrl)}`,
+      { cache: 'no-store', signal: AbortSignal.timeout(30_000) }
+    );
+    if (!res.ok) {
+      const json = await res.json().catch(() => ({}));
+      return { error: (json as { error?: string }).error ?? `daemon_${res.status}` };
+    }
+    return await res.json() as HeyEtsyData;
+  } catch {
+    return { error: 'daemon_unreachable' };
+  }
+}
