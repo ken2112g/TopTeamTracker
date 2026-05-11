@@ -1,0 +1,7 @@
+{
+  "permissions": {
+    "allow": [
+      "PowerShell(Get-ChildItem -Recurse -Name \"c:\\\\Users\\\\Admin\\\\Desktop\\\\etsypulse-web\" | Where-Object { $_ -notmatch \"node_modules|\\\\.next|\\\\.git\" } | Select-Object -First 80)"
+    ]
+  }
+}
