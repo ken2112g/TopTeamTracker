@@ -688,15 +688,15 @@ function ProductCard({ product, selected, onClick, index }: { product: SearchRes
       style={{ animationDelay: `${index * 0.04}s` }}
       className={`card overflow-hidden cursor-pointer transition-all duration-300 animate-slide-up flex flex-col ${borderClass}`}
     >
-      {/* Image / emoji area */}
-      <div className={`h-[120px] relative flex-shrink-0 overflow-hidden ${
-        isHot ? 'bg-gradient-to-br from-red-950/60 to-[#1f1a16]' : 'bg-gradient-to-br from-[#3a2f27] to-[#1f1a16]'
+      {/* Image — aspect-square + object-contain để ảnh hiển thị đầy đủ như Etsy */}
+      <div className={`aspect-square relative flex-shrink-0 overflow-hidden ${
+        isHot ? 'bg-[#1a0f0f]' : 'bg-[#1a1510]'
       }`}>
         {product.imageUrl ? (
           <img
             src={product.imageUrl}
             alt={product.title}
-            className="w-full h-full object-cover"
+            className="w-full h-full object-contain"
             onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
           />
         ) : (
@@ -704,6 +704,7 @@ function ProductCard({ product, selected, onClick, index }: { product: SearchRes
             <span>{product.emoji}</span>
           </div>
         )}
+        {/* Checkbox */}
         <div className={`absolute top-2.5 left-2.5 w-5 h-5 rounded-full grid place-items-center transition-all backdrop-blur-md ${
           selected ? 'bg-orange border-orange' : 'bg-black/70 border border-white/50'
         }`}>
@@ -713,96 +714,74 @@ function ProductCard({ product, selected, onClick, index }: { product: SearchRes
             </svg>
           )}
         </div>
-        <div className="absolute top-2.5 right-2.5 flex items-center gap-1">
-          {isHot && (
-            <span className="px-2 py-0.5 rounded-full bg-red-500 text-white font-mono text-[9px] font-bold backdrop-blur-md">
-              🔥 HOT
-            </span>
-          )}
-          {!isHot && (
-            <span className="px-2 py-0.5 rounded-full bg-black/75 text-accent-amber font-mono text-[9px] font-semibold backdrop-blur-md flex items-center gap-1">
-              <Sparkles size={8} /> ƯỚC TÍNH
-            </span>
-          )}
-        </div>
+        {isHot && (
+          <span className="absolute top-2.5 right-2.5 px-2 py-0.5 rounded-full bg-red-500 text-white font-mono text-[9px] font-bold backdrop-blur-md">
+            🔥 HOT
+          </span>
+        )}
       </div>
 
-      <div className="p-4 flex flex-col gap-3 flex-1">
-        {/* Title + shop + price */}
+      <div className="p-4 flex flex-col gap-2.5 flex-1">
+        {/* Title + shop */}
         <div>
-          <div className="font-display text-[13.5px] font-semibold leading-snug line-clamp-2 mb-0.5">{product.title}</div>
-          <div className="text-[11.5px] text-text-2 italic">by {product.shop}</div>
+          <div className="font-display text-[13px] font-semibold leading-snug line-clamp-2 mb-0.5">{product.title}</div>
+          <div className="text-[11px] text-text-2 italic truncate">by {product.shop}</div>
         </div>
 
+        {/* Giá + Rating — data thật từ Etsy */}
         <div className="flex items-center justify-between">
-          <div>
-            <span className="font-display text-[20px] font-bold text-orange tracking-tight">${product.price}</span>
-            {product.oldPrice && <span className="text-[12px] text-text-2 line-through ml-1.5">${product.oldPrice}</span>}
+          <div className="flex items-baseline gap-1.5">
+            <span className="font-display text-[18px] font-bold text-orange tracking-tight">${product.price}</span>
+            {product.oldPrice && <span className="text-[11px] text-text-2 line-through">${product.oldPrice}</span>}
           </div>
           <div className="font-mono text-[11px] text-text-1 flex items-center gap-1">
-            <Star size={11} className="text-accent-amber fill-accent-amber" />
-            {product.rating} <span className="text-text-2">({product.reviewsCount.toLocaleString()})</span>
+            <Star size={10} className="text-accent-amber fill-accent-amber" />
+            <span>{product.rating}</span>
+            <span className="text-text-2">({product.reviewsCount.toLocaleString()})</span>
           </div>
         </div>
 
-        {/* HeyEtsy-style badges */}
-        <div className="grid grid-cols-2 gap-1.5">
-          <HeyBadge icon={<Star size={10} />} label={`${product.soldDaily ?? 1}+ Sold`} color="#22c55e" />
-          <HeyBadge icon={<Eye size={10} />} label={`${product.viewsDaily ?? 30}+ Views`} color="#f97316" />
-          <HeyBadge icon={<ShoppingBag size={10} />} label={`${product.estimatedSold.toLocaleString()} Sold`} color="#3b82f6" />
-          <HeyBadge icon={<DollarSign size={10} />} label={fmtRevenueCurrency(product.estimatedRevenue, currency)} color="#a855f7" />
+        {/* Chỉ số ước tính — dựa vào số reviews */}
+        <div className="border-t border-line/60 pt-2.5">
+          <div className="flex items-center gap-1 mb-2">
+            <Sparkles size={9} className="text-amber-400" />
+            <span className="font-mono text-[9px] text-amber-400 uppercase tracking-[0.1em]">Ước tính từ reviews</span>
+          </div>
+          <div className="grid grid-cols-2 gap-1.5">
+            <EstBadge icon={<ShoppingBag size={10} />} label="Sold" value={`~${fmtViews(product.estimatedSold)}`} />
+            <EstBadge icon={<DollarSign size={10} />} label="Revenue" value={`~${fmtRevenueCurrency(product.estimatedRevenue, currency)}`} />
+            <EstBadge icon={<Heart size={10} />} label="Yêu thích" value={favorites > 0 ? favorites.toLocaleString() : '—'} real={favorites > 0} />
+            <EstBadge icon={<Eye size={10} />} label="Views/ngày" value={viewsAvg > 0 ? `~${viewsAvg}` : '—'} />
+          </div>
         </div>
 
-        {/* Stats rows */}
-        <div className="border-t border-line/60 pt-2.5 flex flex-col gap-1.5">
-          <StatRow label="Views"     left={`${viewsAvg} (Avg)`} right={fmtViews(viewsTotal)} color="#ef4444" />
-          <StatRow label="Favorites" left={`${favRate}%`}        right={favorites.toLocaleString()} color="#3b82f6" />
-          {product.createdAt && <StatRow label="Created" left={etsyAge(product.createdAt)} color="#3b82f6" />}
-          {product.updatedAt && <StatRow label="Updated" left={relativeDate(product.updatedAt)} color="#22c55e" />}
-        </div>
-
-        {/* Bottom bar: flag + go to shop + sold badge */}
+        {/* Footer: quốc gia + link */}
         <div className="border-t border-line/60 pt-2.5 flex items-center justify-between gap-2 mt-auto">
+          <span className="text-[18px] leading-none" title={product.country ?? 'US'}>{flag}</span>
           <a
             href={product.url}
             target="_blank"
             rel="noreferrer"
             onClick={(e) => e.stopPropagation()}
-            className="text-[20px] leading-none hover:scale-110 transition-transform inline-block"
-            title={`${product.country ?? 'US'} — Xem shop`}
+            className="font-mono text-[10px] text-text-2 hover:text-orange transition-colors underline underline-offset-2"
           >
-            {flag}
+            Xem trên Etsy ↗
           </a>
-          <div
-            className="px-2 py-0.5 rounded-lg text-white text-[10px] font-mono font-bold"
-            style={{ background: '#ef4444' }}
-          >
-            🛒 {product.soldDaily ?? 1}+ Sold
-          </div>
         </div>
       </div>
     </div>
   );
 }
 
-function HeyBadge({ icon, label, color }: { icon: React.ReactNode; label: string; color: string }) {
+// Badge cho chỉ số ước tính: real=true thì màu xanh, false thì màu vàng mờ
+function EstBadge({ icon, label, value, real = false }: { icon: React.ReactNode; label: string; value: string; real?: boolean }) {
   return (
-    <div
-      className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-white text-[11px] font-mono font-semibold"
-      style={{ background: color }}
-    >
-      {icon}
-      <span className="truncate">{label}</span>
-    </div>
-  );
-}
-
-function StatRow({ label, left, right, color }: { label: string; left: string; right?: string; color: string }) {
-  return (
-    <div className="flex items-center text-[11.5px]">
-      <span className="text-text-2 w-[72px] shrink-0 font-mono">{label}</span>
-      <span className="font-mono font-semibold flex-1" style={{ color }}>{left}</span>
-      {right && <span className="font-mono font-bold ml-auto" style={{ color }}>{right}</span>}
+    <div className={`flex items-center gap-1 px-2 py-1.5 rounded-lg text-[10.5px] font-mono font-semibold ${
+      real ? 'bg-green-500/15 text-green-400' : 'bg-bg-3 text-text-1'
+    }`}>
+      <span className="opacity-70">{icon}</span>
+      <span className="text-text-2 text-[9px] mr-0.5">{label}</span>
+      <span className="ml-auto">{value}</span>
     </div>
   );
 }
