@@ -18,7 +18,7 @@
 import { chromium } from 'playwright-extra';
 import StealthPlugin from 'puppeteer-extra-plugin-stealth';
 import { createServer } from 'http';
-import { mkdirSync } from 'fs';
+import { mkdirSync, existsSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import * as cheerio from 'cheerio';
@@ -28,6 +28,27 @@ const ROOT = join(__dirname, '..');
 const PROFILE_DIR = join(ROOT, 'tmp', 'chromium-profile');
 const PORT = 3001;
 const REFRESH_INTERVAL_MS = 90 * 60 * 1000; // 90 phút
+
+// ── Tìm Chrome thật trên máy ──────────────────────────────────────────────────
+// Chrome thật có TLS fingerprint (JA3/JA4) đúng của Chrome.
+// Playwright Chromium có fingerprint khác → DataDome phát hiện được.
+function findRealChrome() {
+  const candidates = [
+    process.env.LOCALAPPDATA
+      ? join(process.env.LOCALAPPDATA, 'Google', 'Chrome', 'Application', 'chrome.exe')
+      : null,
+    'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
+    'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe',
+    '/usr/bin/google-chrome',
+    '/usr/bin/google-chrome-stable',
+    '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
+  ].filter(Boolean);
+
+  for (const p of candidates) {
+    if (existsSync(p)) return p;
+  }
+  return null;
+}
 
 chromium.use(StealthPlugin());
 
@@ -66,6 +87,21 @@ async function extractCookie() {
   return false;
 }
 
+// Scroll dần dần như người dùng thật
+async function humanScroll(page, targetY = 600) {
+  await page.evaluate((target) => {
+    return new Promise((resolve) => {
+      let current = 0;
+      const step = 80 + Math.floor(Math.random() * 40);
+      const interval = setInterval(() => {
+        current += step;
+        window.scrollTo({ top: current, behavior: 'smooth' });
+        if (current >= target) { clearInterval(interval); resolve(); }
+      }, 120 + Math.floor(Math.random() * 60));
+    });
+  }, targetY).catch(() => {});
+}
+
 async function navigateEtsy() {
   if (!state.browser) return;
   const pages = state.browser.pages();
@@ -78,6 +114,17 @@ async function navigateEtsy() {
       timeout: 30_000,
     });
 
+    // Chờ trang ổn định
+    await page.waitForTimeout(1500 + Math.random() * 1000);
+
+    // Di chuyển chuột + scroll như người thật
+    await page.mouse.move(300 + Math.random() * 200, 200 + Math.random() * 100).catch(() => {});
+    await page.waitForTimeout(400 + Math.random() * 300);
+    await humanScroll(page, 400 + Math.random() * 300);
+    await page.waitForTimeout(800 + Math.random() * 600);
+    await page.mouse.move(500 + Math.random() * 200, 400 + Math.random() * 150).catch(() => {});
+    await page.waitForTimeout(500 + Math.random() * 400);
+
     // Chờ DataDome xử lý (tối đa 30 giây)
     for (let i = 0; i < 15; i++) {
       await page.waitForTimeout(2_000);
@@ -87,10 +134,11 @@ async function navigateEtsy() {
 
     // Kiểm tra captcha
     const text = await page.evaluate(() => document.body?.innerText ?? '').catch(() => '');
-    if (text.includes('captcha') || text.includes('temporarily restricted')) {
+    if (text.includes('captcha') || text.includes('temporarily restricted') || text.includes('Please verify')) {
       log('⚠️  DataDome captcha! Vui lòng giải tay trong cửa sổ Chrome vừa mở.');
+      log('   → Sau khi giải xong, daemon sẽ tự nhận cookie.');
       state.lastError = 'captcha_detected';
-      // Chờ thêm 5 phút để user giải captcha
+      // Chờ tối đa 5 phút để user giải captcha
       for (let i = 0; i < 150; i++) {
         await page.waitForTimeout(2_000);
         const ok = await extractCookie();
@@ -109,30 +157,50 @@ async function navigateEtsy() {
 async function startBrowser() {
   mkdirSync(PROFILE_DIR, { recursive: true });
 
+  const realChrome = findRealChrome();
+  if (realChrome) {
+    log(`✅ Dùng Chrome thật: ${realChrome}`);
+  } else {
+    log('⚠️  Không tìm thấy Chrome, fallback sang Playwright Chromium');
+    log('   → Cài Chrome tại: https://google.com/chrome để bypass tốt hơn');
+  }
+
   log(`📁 Profile dir: ${PROFILE_DIR}`);
   log('🚀 Khởi động Chrome (persistent profile, stealth mode)...');
 
-  state.browser = await chromium.launchPersistentContext(PROFILE_DIR, {
+  // Khi dùng Chrome thật, KHÔNG override userAgent — để Chrome tự dùng UA thật của nó.
+  // UA thật khớp với TLS fingerprint → DataDome không phát hiện mismatch.
+  const launchOptions = {
+    executablePath: realChrome ?? undefined,
     headless: false,
     args: [
-      '--window-size=940,680',
+      '--window-size=1280,800',
       '--no-first-run',
       '--no-default-browser-check',
-      '--disable-infobars',
-      '--disable-extensions-except',
+      '--disable-blink-features=AutomationControlled',
+      '--disable-features=IsolateOrigins,site-per-process',
     ],
-    userAgent:
-      'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
-    viewport: { width: 940, height: 680 },
+    viewport: { width: 1280, height: 800 },
     locale: 'en-US',
     extraHTTPHeaders: { 'Accept-Language': 'en-US,en;q=0.9' },
     timeout: 30_000,
-  });
+  };
 
-  // Thêm hành vi người dùng thật
+  // Chỉ set userAgent tùy chỉnh nếu không tìm thấy Chrome thật
+  if (!realChrome) {
+    launchOptions.userAgent =
+      'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.6367.207 Safari/537.36';
+  }
+
+  state.browser = await chromium.launchPersistentContext(PROFILE_DIR, launchOptions);
+
   state.browser.on('page', async (page) => {
     await page.addInitScript(() => {
       Object.defineProperty(navigator, 'webdriver', { get: () => undefined });
+      // Thêm chrome object như Chrome thật
+      if (!window.chrome) {
+        window.chrome = { runtime: {}, loadTimes: () => {}, csi: () => {}, app: {} };
+      }
     }).catch(() => {});
   });
 
@@ -144,7 +212,23 @@ async function startBrowser() {
   log(`⏰ Auto-refresh mỗi ${REFRESH_INTERVAL_MS / 60_000} phút`);
 }
 
-// ── Cheerio search (dùng cookie đang có) ─────────────────────────────────────
+// ── Search lock (tránh 2 search chạy song song, tranh browser) ───────────────
+let searchLock = false;
+const searchQueue = [];
+
+function acquireSearchLock() {
+  return new Promise((resolve) => {
+    if (!searchLock) { searchLock = true; resolve(); }
+    else searchQueue.push(resolve);
+  });
+}
+
+function releaseSearchLock() {
+  if (searchQueue.length > 0) searchQueue.shift()();
+  else searchLock = false;
+}
+
+// ── Cheerio parse (dùng chung cho cả search) ──────────────────────────────────
 const EMOJIS = ['🎁', '✨', '🌟', '🎨', '🛍️', '💎', '🌈', '🎀', '🏆', '🌺'];
 
 function parsePrice(str) {
@@ -227,68 +311,83 @@ function parsePage(html, seen, limit, startIdx) {
   return results;
 }
 
+// ── Browser-based search: toàn bộ request đi qua Chrome thật ────────────────
+// Lý do: DataDome kiểm tra TLS fingerprint + Sec-CH-UA headers.
+// fetch() của Node.js bị phát hiện dù có cookie hợp lệ.
+// Dùng page.goto() đảm bảo DataDome luôn thấy đúng Chrome session.
 async function searchEtsy(keyword, limit) {
-  if (!state.currentCookie) return { error: 'cookie_not_ready' };
+  if (!state.browser || !state.isReady) return { error: 'browser_not_ready' };
 
-  const results = [];
-  const seen = new Set();
-  const pagesNeeded = Math.ceil(limit / 11);
+  await acquireSearchLock();
+  let page = null;
 
-  for (let page = 1; page <= Math.min(pagesNeeded, 8); page++) {
-    const url = `https://www.etsy.com/search?q=${encodeURIComponent(keyword)}&explicit=1&page=${page}`;
-    const referer =
-      page === 1
-        ? 'https://www.etsy.com/'
-        : `https://www.etsy.com/search?q=${encodeURIComponent(keyword)}&page=${page - 1}`;
+  try {
+    page = await state.browser.newPage();
+    const results = [];
+    const seen = new Set();
+    const pagesNeeded = Math.ceil(limit / 24); // Etsy render ~24 items/trang khi dùng browser
 
-    const res = await fetch(url, {
-      headers: {
-        'User-Agent':
-          'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
-        Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-        'Accept-Language': 'en-US,en;q=0.9',
-        'Sec-Fetch-Dest': 'document',
-        'Sec-Fetch-Mode': 'navigate',
-        'Sec-Fetch-Site': 'none',
-        Referer: referer,
-        Cookie: `datadome=${state.currentCookie}`,
-      },
-    });
+    for (let pageNum = 1; pageNum <= Math.min(pagesNeeded, 6); pageNum++) {
+      const url = `https://www.etsy.com/search?q=${encodeURIComponent(keyword)}&explicit=1&page=${pageNum}`;
+      log(`🔍 Browser search "${keyword}" trang ${pageNum}/${Math.min(pagesNeeded, 6)}...`);
 
-    if (!res.ok) {
-      if (page === 1) {
-        log(`❌ Etsy ${res.status} — cookie có thể hết hạn, đang schedule refresh...`);
-        setTimeout(navigateEtsy, 1000);
-        return { error: 'cookie_expired' };
+      try {
+        await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 30_000 });
+      } catch (navErr) {
+        log(`❌ Navigation lỗi trang ${pageNum}: ${navErr.message?.slice(0, 80)}`);
+        if (pageNum === 1) return { error: navErr.message };
+        break;
       }
-      break;
-    }
 
-    const html = await res.text();
-    if (html.includes('captcha-delivery') || html.includes('temporarily restricted')) {
-      if (page === 1) {
-        log('⚠️  DataDome phát hiện bot — đang refresh cookie...');
+      // Chờ listing cards render
+      await page.waitForSelector('[data-listing-id]', { timeout: 12_000 }).catch(() => {});
+
+      // Di chuột + scroll như người thật
+      await page.mouse.move(400 + Math.random() * 300, 200 + Math.random() * 100).catch(() => {});
+      await page.waitForTimeout(300 + Math.random() * 200);
+      await humanScroll(page, 300 + Math.random() * 200);
+      await page.waitForTimeout(500 + Math.random() * 400);
+
+      // Kiểm tra DataDome block
+      const bodyText = await page.evaluate(() => document.body?.innerText ?? '').catch(() => '');
+      if (
+        bodyText.includes('captcha-delivery') ||
+        bodyText.includes('temporarily restricted') ||
+        bodyText.includes('Please verify you are a human')
+      ) {
+        log('⚠️  DataDome chặn khi search! Đang refresh session...');
         state.isReady = false;
-        setTimeout(navigateEtsy, 1000);
-        return { error: 'cookie_expired' };
+        setTimeout(navigateEtsy, 500);
+        if (pageNum === 1) return { error: 'cookie_expired' };
+        break;
       }
-      break;
+
+      const html = await page.content();
+      const pageItems = parsePage(html, seen, limit, results.length);
+      results.push(...pageItems);
+      log(`   Trang ${pageNum}: +${pageItems.length} items (tổng: ${results.length})`);
+
+      if (results.length >= limit) break;
+
+      // Delay ngẫu nhiên giữa các trang
+      if (pageNum < Math.min(pagesNeeded, 6)) {
+        await page.waitForTimeout(1800 + Math.random() * 1200);
+      }
     }
 
-    const pageItems = parsePage(html, seen, limit, results.length);
-    results.push(...pageItems);
-    if (results.length >= limit) break;
+    // Cập nhật cookie sau khi search thành công (DataDome có thể rotate cookie)
+    await extractCookie();
 
-    if (page < pagesNeeded) {
-      await new Promise((r) => setTimeout(r, 800 + Math.random() * 600));
-    }
+    if (results.length === 0) return { error: 'no_results' };
+    return { results };
+
+  } catch (err) {
+    log(`❌ Browser search lỗi: ${err.message?.slice(0, 120)}`);
+    return { error: err.message };
+  } finally {
+    if (page) await page.close().catch(() => {});
+    releaseSearchLock();
   }
-
-  if (results.length === 0) return { error: 'no_results' };
-
-  // Cookie dùng thành công → cập nhật lastRefresh
-  state.lastRefresh = new Date().toISOString();
-  return { results };
 }
 
 // ── HTTP Server ───────────────────────────────────────────────────────────────
