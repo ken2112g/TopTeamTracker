@@ -16,3 +16,14 @@ tmp/
 .chrome-debug/
 
 .vercel
+
+# Local dev tools
+.mcp.json
+.claude/
+
+# Build artifacts
+tsconfig.tsbuildinfo
+
+# Chrome profiles & harvest artifacts
+chrome-profiles/
+logs/

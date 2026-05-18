@@ -1,5 +1,5 @@
 /**
- * EtsyPulse — Tự động lấy DataDome cookie từ Etsy
+ * TopTeamTracker — Tự động lấy DataDome cookie từ Etsy
  * Chạy: npm run cookie:refresh
  *
  * Cách hoạt động:
@@ -24,7 +24,7 @@ chromium.use(StealthPlugin());
 
 const BANNER = `
 ╔══════════════════════════════════════════════════════╗
-║          EtsyPulse — Cookie Refresher v1.0           ║
+║       TopTeamTracker — Cookie Refresher v1.0         ║
 ╚══════════════════════════════════════════════════════╝
 `;
 

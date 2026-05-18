@@ -5,7 +5,7 @@ import ToastContainer from '@/components/ui/ToastContainer';
 import AddListingModal from '@/components/modals/AddListingModal';
 
 export const metadata: Metadata = {
-  title: 'EtsyPulse — Track · Compare · Win',
+  title: 'TopTeamTracker — Track · Compare · Win',
   description: 'Theo dõi và phân tích sản phẩm Etsy theo thời gian'
 };
 

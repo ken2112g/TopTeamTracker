@@ -9,6 +9,8 @@
     color: #fef7f0;
     font-family: 'Plus Jakarta Sans', sans-serif;
     font-size: 14px;
+  }
+  body {
     overflow-x: hidden;
   }
 

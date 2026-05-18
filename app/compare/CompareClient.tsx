@@ -12,6 +12,33 @@ ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Tooltip,
 
 const COLORS = ['#f1641e', '#a78bfa', '#84cc16', '#60a5fa', '#facc15', '#ec4899'];
 
+function upscaleImg(url?: string) {
+  if (!url) return url;
+  return url.replace(/il_(?:fullxfull|\d+x\w+)\./i, 'il_794xN.');
+}
+
+function ListingThumb({ listing, size = 28 }: { listing: Listing; size?: number }) {
+  const dim = `${size}px`;
+  if (listing.imageUrl) {
+    return (
+      <img
+        src={upscaleImg(listing.imageUrl)}
+        alt=""
+        className="rounded-md object-cover shrink-0"
+        style={{ width: dim, height: dim }}
+      />
+    );
+  }
+  return (
+    <div
+      className="rounded-md bg-gradient-to-br from-[#3a2f27] to-[#1f1a16] grid place-items-center shrink-0 text-sm"
+      style={{ width: dim, height: dim }}
+    >
+      {listing.emoji || '📦'}
+    </div>
+  );
+}
+
 export default function CompareClient({ allListings }: { allListings: Listing[] }) {
   const searchParams = useSearchParams();
   const [range, setRange] = useState<DateRange>('30d');
@@ -68,9 +95,9 @@ export default function CompareClient({ allListings }: { allListings: Listing[] 
             <div
               key={l.id}
               className="flex items-center gap-2 px-3 py-2 bg-bg-2 border border-line rounded-[10px] hover:border-orange transition-all"
+              style={{ borderLeftColor: COLORS[i % COLORS.length], borderLeftWidth: 3 }}
             >
-              <div className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: COLORS[i % COLORS.length] }} />
-              <div className="text-lg leading-none">{l.emoji || '📦'}</div>
+              <ListingThumb listing={l} size={28} />
               <div className="text-[12.5px] font-medium max-w-[140px] truncate">{l.title}</div>
               <button
                 onClick={() => removeId(l.id)}
@@ -108,7 +135,7 @@ export default function CompareClient({ allListings }: { allListings: Listing[] 
                   onClick={() => addId(l.id)}
                   className="text-left p-3 rounded-[10px] bg-bg-2 hover:bg-bg-3 hover:border-orange border border-line transition-all flex items-center gap-2.5"
                 >
-                  <div className="text-xl leading-none">{l.emoji || '📦'}</div>
+                  <ListingThumb listing={l} size={36} />
                   <div className="flex-1 min-w-0">
                     <div className="text-[13px] font-medium truncate">{l.title}</div>
                     <div className="text-[11px] text-text-2 truncate">{l.shopName}</div>
@@ -124,8 +151,9 @@ export default function CompareClient({ allListings }: { allListings: Listing[] 
       {selected.length >= 2 && (
         <div className="flex gap-3 flex-wrap mb-5">
           {selected.map((l, i) => (
-            <div key={l.id} className="flex items-center gap-2 px-3 py-1.5 bg-bg-1 rounded-lg border border-line text-[12px]">
-              <div className="w-8 h-1.5 rounded-full" style={{ background: COLORS[i % COLORS.length] }} />
+            <div key={l.id} className="flex items-center gap-2 px-2.5 py-1.5 bg-bg-1 rounded-lg border border-line text-[12px]">
+              <ListingThumb listing={l} size={22} />
+              <div className="w-6 h-1 rounded-full shrink-0" style={{ background: COLORS[i % COLORS.length] }} />
               <span className="font-medium truncate max-w-[160px]">{l.title.slice(0, 30)}</span>
             </div>
           ))}

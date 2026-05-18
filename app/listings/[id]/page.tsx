@@ -12,7 +12,7 @@ export default async function ListingDetailPage({ params }: PageProps) {
   const { id } = await params;
   const [listing, snapshots] = await Promise.all([
     fetchListingById(id),
-    fetchSnapshots(id, 30),
+    fetchSnapshots(id, 180),
   ]);
   if (!listing) notFound();
 

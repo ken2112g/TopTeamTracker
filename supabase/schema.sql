@@ -1,4 +1,4 @@
--- EtsyPulse Database Schema
+-- TopTeamTracker Database Schema
 -- Chạy file này trong Supabase SQL Editor: supabase.com → SQL Editor → New query
 
 -- Enable UUID extension

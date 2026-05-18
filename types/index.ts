@@ -1,4 +1,4 @@
-// Types cho EtsyPulse Web
+// Types cho TopTeamTracker Web
 
 export interface Collection {
   id: string;

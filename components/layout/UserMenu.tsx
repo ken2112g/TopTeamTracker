@@ -2,14 +2,14 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { LogOut, Users, Settings, ChevronDown, Crown, Shield, User } from 'lucide-react';
+import { LogOut, Users, Settings, ChevronDown, Crown, Shield, User, ShieldAlert } from 'lucide-react';
 import { useAuthStore } from '@/lib/store/useAuthStore';
 import Link from 'next/link';
 
 const ROLE_CONFIG = {
-  owner: { label: 'Trưởng nhóm', icon: Crown, color: '#f1641e' },
-  admin: { label: 'Quản trị viên', icon: Shield, color: '#84cc16' },
-  member: { label: 'Thành viên', icon: User, color: '#60a5fa' },
+  owner: { label: 'Admin', icon: Crown, color: '#f1641e' },
+  admin: { label: 'Leader', icon: Shield, color: '#84cc16' },
+  member: { label: 'Member', icon: User, color: '#60a5fa' },
 } as const;
 
 function getInitials(name: string) {
@@ -42,8 +42,10 @@ export default function UserMenu() {
   const initials = getInitials(currentUser.name);
   const isTeamOwnerOrAdmin = currentUser.role === 'owner' || currentUser.role === 'admin';
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
     setOpen(false);
+    const { getSupabaseClient } = await import('@/lib/supabase/client');
+    await getSupabaseClient().auth.signOut();
     logout();
     router.replace('/auth/login');
   };
@@ -55,12 +57,13 @@ export default function UserMenu() {
         className="flex items-center gap-2.5 pl-3 pr-2.5 py-1.5 rounded-xl bg-bg-2 border border-line hover:border-orange/40 hover:bg-bg-3 transition-all"
       >
         {/* Avatar */}
-        <div
-          className="w-7 h-7 rounded-lg grid place-items-center font-display font-bold text-[11px] text-white shrink-0"
-          style={{ background: roleConf.color }}
-        >
-          {initials}
-        </div>
+        {currentUser.avatarUrl ? (
+          <img src={currentUser.avatarUrl} alt={currentUser.name}
+            className="w-7 h-7 rounded-lg object-cover shrink-0" />
+        ) : (
+          <div className="w-7 h-7 rounded-lg grid place-items-center font-display font-bold text-[11px] text-white shrink-0"
+            style={{ background: roleConf.color }}>{initials}</div>
+        )}
 
         {/* Name */}
         <div className="hidden sm:block text-left min-w-0">
@@ -80,12 +83,13 @@ export default function UserMenu() {
           {/* User info header */}
           <div className="px-4 py-3.5 border-b border-line bg-bg-2">
             <div className="flex items-center gap-3">
-              <div
-                className="w-10 h-10 rounded-xl grid place-items-center font-display font-bold text-[14px] text-white shrink-0"
-                style={{ background: roleConf.color }}
-              >
-                {initials}
-              </div>
+              {currentUser.avatarUrl ? (
+                <img src={currentUser.avatarUrl} alt={currentUser.name}
+                  className="w-10 h-10 rounded-xl object-cover shrink-0" />
+              ) : (
+                <div className="w-10 h-10 rounded-xl grid place-items-center font-display font-bold text-[14px] text-white shrink-0"
+                  style={{ background: roleConf.color }}>{initials}</div>
+              )}
               <div className="min-w-0">
                 <div className="font-display text-[14px] font-bold text-text-0 truncate">{currentUser.name}</div>
                 <div className="font-mono text-[11px] text-text-2 truncate">{currentUser.email}</div>
@@ -106,11 +110,9 @@ export default function UserMenu() {
               </span>
             </div>
 
-            {currentUser.accountType === 'team' && (
-              <div className="mt-2 text-[11.5px] text-text-2 font-mono truncate">
-                Team: <span className="text-text-1">{currentTeam?.name ?? '—'}</span>
-              </div>
-            )}
+            <div className="mt-2 text-[11.5px] text-text-2 font-mono truncate">
+              Workspace: <span className="text-text-1">{currentTeam?.name ?? '—'}</span>
+            </div>
           </div>
 
           {/* Menu items */}
@@ -133,6 +135,17 @@ export default function UserMenu() {
               Cài đặt
             </MenuItem>
 
+            {currentUser.isSuperAdmin && (
+              <MenuItem
+                icon={<ShieldAlert size={15} />}
+                href="/admin"
+                onClick={() => setOpen(false)}
+                highlight
+              >
+                Super Admin Panel
+              </MenuItem>
+            )}
+
             <div className="border-t border-line my-1" />
 
             <button
@@ -149,19 +162,22 @@ export default function UserMenu() {
   );
 }
 
-function MenuItem({ icon, href, onClick, children }: {
+function MenuItem({ icon, href, onClick, highlight, children }: {
   icon: React.ReactNode;
   href: string;
   onClick?: () => void;
+  highlight?: boolean;
   children: React.ReactNode;
 }) {
   return (
     <Link
       href={href}
       onClick={onClick}
-      className="flex items-center gap-3 px-4 py-2.5 hover:bg-bg-2 transition-colors text-text-1 hover:text-text-0 text-[13.5px]"
+      className={`flex items-center gap-3 px-4 py-2.5 hover:bg-bg-2 transition-colors text-[13.5px] ${
+        highlight ? 'text-orange hover:text-orange-bright' : 'text-text-1 hover:text-text-0'
+      }`}
     >
-      <span className="text-text-2">{icon}</span>
+      <span className={highlight ? 'text-orange' : 'text-text-2'}>{icon}</span>
       {children}
     </Link>
   );

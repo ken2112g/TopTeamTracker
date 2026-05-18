@@ -3,14 +3,19 @@
 import { useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { Line, Bar } from 'react-chartjs-2';
-import { Chart as ChartJS, CategoryScale, LinearScale, PointElement, LineElement, BarElement, Tooltip, Legend, Filler } from 'chart.js';
+import { Line } from 'react-chartjs-2';
+import { Chart as ChartJS, CategoryScale, LinearScale, PointElement, LineElement, Tooltip, Legend, Filler } from 'chart.js';
 import { ArrowLeft, ExternalLink, Plus, Download, Tag, X, GitCompare, Star, Eye, ShoppingBag, DollarSign } from 'lucide-react';
 import RangePicker from '@/components/ui/RangePicker';
 import { useAppStore } from '@/lib/store/useAppStore';
 import type { Listing, DateRange } from '@/types';
 
-ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, BarElement, Tooltip, Legend, Filler);
+ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Tooltip, Legend, Filler);
+
+function upscaleImg(url?: string) {
+  if (!url) return url;
+  return url.replace(/il_(?:fullxfull|\d+x\w+)\./i, 'il_794xN.');
+}
 
 export default function ListingDetailClient({ listing }: { listing: Listing }) {
   const [range, setRange] = useState<DateRange>('30d');
@@ -22,36 +27,74 @@ export default function ListingDetailClient({ listing }: { listing: Listing }) {
   const { listingTags, addListingTag, removeListingTag, showToast } = useAppStore();
 
   const days = parseInt(range) || 30;
-  const rawSnapshots = (listing.snapshots || []).slice(-days);
+  const allSnapshots = listing.snapshots || [];
+  const rawSnapshots = allSnapshots.slice(-days);
 
   // Aggregate weekly if needed
   const { snapshots, labels } = buildData(rawSnapshots, granularity);
 
-  const totalSold = rawSnapshots.reduce((sum, s) => sum + s.soldDaily, 0);
-  const totalViews = rawSnapshots.reduce((sum, s) => sum + s.viewsDaily, 0);
-  const totalRevenue = rawSnapshots.reduce((sum, s) => sum + s.revenueUsd, 0);
-  const avgCvr = totalViews > 0 ? (totalSold / totalViews) * 100 : 0;
-  const dayCount = rawSnapshots.length || 1;
-
-  // HeyEtsy-style metrics from last snapshot
+  // HeyEtsy-style metrics from last snapshot (lifetime totals)
   const lastSnap = listing.snapshots?.[listing.snapshots.length - 1];
   const heySoldDaily = lastSnap?.soldDaily ?? 0;
   const heyViewsDaily = lastSnap?.viewsDaily ?? 0;
   const heySoldTotal = lastSnap?.soldTotal ?? 0;
   const heyViewsTotal = lastSnap?.viewsTotal ?? 0;
   const heyFavorites = listing.favoritesCount ?? lastSnap?.favorites ?? 0;
-  // Use reviewsCount * 150 as proxy for all-time views (snapshot viewsTotal is only 30-day cumulative)
-  const heyViewsAllTime = listing.reviewsCount * 150;
-  const heyFavRate = heyViewsAllTime > 0 ? +((heyFavorites / heyViewsAllTime) * 100).toFixed(2) : 0;
-  const heyRevenue = totalRevenue;
+  const heyFavRate = heyViewsTotal > 0 ? +((heyFavorites / heyViewsTotal) * 100).toFixed(2) : 0;
+  const heyRevenue = lastSnap?.revenueUsd ?? 0;
+
+  // Tổng daily values kể từ ngày bắt đầu track (không fallback về lifetime HeyEtsy)
+  const sumSoldDaily = rawSnapshots.reduce((sum, s) => sum + (s.soldDaily || 0), 0);
+  const sumViewsDaily = rawSnapshots.reduce((sum, s) => sum + (s.viewsDaily || 0), 0);
+  const totalSold = sumSoldDaily;
+  const totalViews = sumViewsDaily;
+  const totalRevenue = lastSnap?.revenueUsd || 0;
+  // CVR dùng lifetime totals từ HeyEtsy (cùng time horizon → con số có nghĩa)
+  const avgCvr = heyViewsTotal > 0 ? (heySoldTotal / heyViewsTotal) * 100 : 0;
+  const dayCount = rawSnapshots.length || 1;
+
+  // Delta: so sánh kỳ hiện tại với kỳ trước đó cùng độ dài
+  const prevSnaps = allSnapshots.slice(-(days * 2), -days);
+  const prevLastSnap = prevSnaps[prevSnaps.length - 1];
+  const prevSumSold = prevSnaps.reduce((sum, s) => sum + (s.soldDaily || 0), 0);
+  const prevSumViews = prevSnaps.reduce((sum, s) => sum + (s.viewsDaily || 0), 0);
+  const prevSold = prevSumSold;
+  const prevViews = prevSumViews;
+  const prevRevenue = prevLastSnap?.revenueUsd || 0;
+  const prevHeyViewsTotal = prevLastSnap?.viewsTotal || 0;
+  const prevHeySoldTotal = prevLastSnap?.soldTotal || 0;
+  const prevAvgCvr = prevHeyViewsTotal > 0 ? (prevHeySoldTotal / prevHeyViewsTotal) * 100 : 0;
+  const soldDelta = prevSold > 0 ? ((totalSold - prevSold) / prevSold) * 100 : null;
+  const viewsDelta = prevViews > 0 ? ((totalViews - prevViews) / prevViews) * 100 : null;
+  const revenueDelta = prevRevenue > 0 ? ((totalRevenue - prevRevenue) / prevRevenue) * 100 : null;
+  const cvrDelta = prevAvgCvr > 0 ? ((avgCvr - prevAvgCvr) / prevAvgCvr) * 100 : null;
   const isHot = heySoldTotal > 2500 || heySoldDaily > 10;
   const currency = listing.currency ?? 'USD';
   const country = listing.country ?? 'US';
 
   const COUNTRY_FLAGS: Record<string, string> = {
+    // ISO codes
     US: '🇺🇸', VN: '🇻🇳', CA: '🇨🇦', GB: '🇬🇧', AU: '🇦🇺',
-    DE: '🇩🇪', FR: '🇫🇷', JP: '🇯🇵', KR: '🇰🇷',
+    DE: '🇩🇪', FR: '🇫🇷', JP: '🇯🇵', KR: '🇰🇷', CN: '🇨🇳',
+    IN: '🇮🇳', BR: '🇧🇷', MX: '🇲🇽', IT: '🇮🇹', ES: '🇪🇸',
+    NL: '🇳🇱', SE: '🇸🇪', PL: '🇵🇱', TR: '🇹🇷', TH: '🇹🇭',
+    SG: '🇸🇬', NZ: '🇳🇿', RU: '🇷🇺', UA: '🇺🇦', IL: '🇮🇱',
+    // Full country names (từ HeyEtsy)
+    'United States': '🇺🇸', 'Vietnam': '🇻🇳', 'Canada': '🇨🇦',
+    'United Kingdom': '🇬🇧', 'Australia': '🇦🇺', 'Germany': '🇩🇪',
+    'France': '🇫🇷', 'Japan': '🇯🇵', 'South Korea': '🇰🇷', 'Korea': '🇰🇷',
+    'China': '🇨🇳', 'India': '🇮🇳', 'Brazil': '🇧🇷', 'Mexico': '🇲🇽',
+    'Italy': '🇮🇹', 'Spain': '🇪🇸', 'Netherlands': '🇳🇱', 'Sweden': '🇸🇪',
+    'Poland': '🇵🇱', 'Turkey': '🇹🇷', 'Thailand': '🇹🇭', 'Singapore': '🇸🇬',
+    'New Zealand': '🇳🇿', 'Russia': '🇷🇺', 'Ukraine': '🇺🇦', 'Israel': '🇮🇱',
   };
+  const CURRENCY_FLAG: Record<string, string> = {
+    USD: '🇺🇸', VND: '🇻🇳', GBP: '🇬🇧', AUD: '🇦🇺', CAD: '🇨🇦',
+    EUR: '🇪🇺', JPY: '🇯🇵', KRW: '🇰🇷', CNY: '🇨🇳', INR: '🇮🇳',
+    BRL: '🇧🇷', MXN: '🇲🇽', SEK: '🇸🇪', THB: '🇹🇭', SGD: '🇸🇬',
+    NZD: '🇳🇿',
+  };
+  const countryFlag = COUNTRY_FLAGS[country] ?? CURRENCY_FLAG[currency] ?? '🏳️';
 
   const tags = listingTags[listing.id] || [];
 
@@ -93,23 +136,30 @@ export default function ListingDetailClient({ listing }: { listing: Listing }) {
   return (
     <div className="p-8 xl:p-10">
       <div className="flex items-center gap-2.5 mb-6 text-[13px] text-text-2">
-        <Link href="/" className="text-orange hover:underline flex items-center gap-1">
+        <Link
+          href={listing.collectionId ? `/collections/${listing.collectionId}` : '/'}
+          className="text-orange hover:underline flex items-center gap-1"
+        >
           <ArrowLeft size={14} /> Quay lại
         </Link>
         <span>/</span>
-        <span className="truncate">{listing.title.slice(0, 60)}...</span>
+        <span className="truncate">{listing.title.slice(0, 60)}{listing.title.length > 60 ? '...' : ''}</span>
       </div>
 
       {/* Header */}
       <div className="flex gap-7 mb-8 p-7 bg-gradient-to-br from-bg-1 to-bg-2 border border-line rounded-[20px] relative overflow-hidden">
         <div className="absolute -top-24 -right-24 w-[300px] h-[300px] rounded-full bg-orange/20 blur-3xl pointer-events-none" />
-        <div className="w-40 h-40 rounded-2xl bg-gradient-to-br from-[#3a2f27] to-[#1f1a16] grid place-items-center text-[72px] flex-shrink-0 shadow-2xl">
-          {listing.emoji || '📦'}
+        <div className="w-40 h-40 rounded-2xl overflow-hidden flex-shrink-0 shadow-2xl bg-gradient-to-br from-[#3a2f27] to-[#1f1a16]">
+          {listing.imageUrl ? (
+            <img src={upscaleImg(listing.imageUrl)} alt="" className="w-full h-full object-cover" style={{ imageRendering: 'auto' }} />
+          ) : (
+            <div className="w-full h-full grid place-items-center text-[72px]">{listing.emoji || '📦'}</div>
+          )}
         </div>
         <div className="flex-1 relative z-10">
           <h2 className="font-display text-[26px] font-bold tracking-tight leading-tight mb-2.5">{listing.title}</h2>
           <div className="text-[14px] text-text-1 mb-4 flex items-center gap-2.5 flex-wrap">
-            <span className="text-[18px] leading-none">{COUNTRY_FLAGS[country] ?? '🌐'}</span>
+            <span className="text-[18px] leading-none">{countryFlag}</span>
             <span>by</span>
             <span className="text-orange font-semibold">{listing.shopName}</span>
             <span className="font-mono text-[11px] text-text-2 bg-bg-2 px-1.5 py-0.5 rounded">{currency}</span>
@@ -170,6 +220,7 @@ export default function ListingDetailClient({ listing }: { listing: Listing }) {
             ) : (
               <button
                 onClick={() => setShowTagInput(true)}
+                title="Gắn nhãn riêng cho sản phẩm (VD: hot, đối thủ, cần theo dõi). Tags dùng để lọc nhanh trong danh sách collection."
                 className="px-3 py-1 rounded-full text-[12px] font-medium border border-dashed border-line-strong text-text-2 hover:border-orange hover:text-orange transition-all flex items-center gap-1"
               >
                 <Plus size={11} /> Thêm tag
@@ -178,10 +229,10 @@ export default function ListingDetailClient({ listing }: { listing: Listing }) {
           </div>
 
           <div className="grid grid-cols-4 gap-5 pt-5 border-t border-dashed border-line-strong">
-            <QuickStat label={`Đã bán · ${range}`} value={totalSold.toLocaleString()} delta={12.4} />
-            <QuickStat label={`Lượt xem · ${range}`} value={`${(totalViews / 1000).toFixed(1)}K`} delta={8.1} />
-            <QuickStat label={`Doanh thu · ${range}`} value={`$${(totalRevenue / 1000).toFixed(1)}K`} delta={10.2} />
-            <QuickStat label="CVR trung bình" value={`${avgCvr.toFixed(2)}%`} delta={-0.3} />
+            <QuickStat label="Đã bán (tracking)" value={totalSold >= 1000 ? `${(totalSold / 1000).toFixed(1)}K` : totalSold.toLocaleString()} delta={soldDelta} color="#22c55e" />
+            <QuickStat label="Lượt xem (tracking)" value={totalViews >= 1000 ? `${(totalViews / 1000).toFixed(1)}K` : totalViews.toLocaleString()} delta={viewsDelta} color="#f97316" />
+            <QuickStat label="Doanh thu (tổng)" value={fmtRevenueByCurrency(totalRevenue, 'USD')} delta={revenueDelta} color="#a855f7" />
+            <QuickStat label="CVR" value={`${avgCvr.toFixed(2)}%`} delta={cvrDelta} color="#facc15" />
           </div>
         </div>
       </div>
@@ -199,7 +250,7 @@ export default function ListingDetailClient({ listing }: { listing: Listing }) {
             <HeyBadge icon={<Star size={11} />} label={`${heySoldDaily}+ Sold`} color="#22c55e" />
             <HeyBadge icon={<Eye size={11} />} label={`${heyViewsDaily}+ Views`} color="#f97316" />
             <HeyBadge icon={<ShoppingBag size={11} />} label={heySoldTotal.toLocaleString() + ' Sold'} color="#3b82f6" />
-            <HeyBadge icon={<DollarSign size={11} />} label={fmtRevenueByCurrency(heyRevenue, currency)} color="#a855f7" />
+            <HeyBadge icon={<DollarSign size={11} />} label={fmtRevenueByCurrency(heyRevenue, 'USD')} color="#a855f7" />
           </div>
 
           {/* Stats rows — fixed max-width so right values stay close */}
@@ -250,19 +301,19 @@ export default function ListingDetailClient({ listing }: { listing: Listing }) {
         <ChartCard
           title="Số đơn bán"
           stats={[
-            { label: 'Tổng', value: `${totalSold.toLocaleString()} đơn` },
-            { label: 'TB/ngày', value: `${(totalSold / dayCount).toFixed(1)}` },
+            { label: 'Tổng', value: `${sumSoldDaily.toLocaleString()} đơn` },
+            { label: 'TB/ngày', value: `${(sumSoldDaily / dayCount).toFixed(1)}` },
           ]}
           tag="SOLD"
-          tagColor="orange"
+          tagColor="green"
         >
-          <Bar data={chartData(labels, snapshots.map((s) => s.soldDaily), 'sold')} options={chartOptions('sold')} />
+          <Line data={chartData(labels, snapshots.map((s) => s.soldDaily), 'sold')} options={chartOptions('sold')} />
         </ChartCard>
         <ChartCard
           title="Lượt xem"
           stats={[
-            { label: 'Tổng', value: `${totalViews.toLocaleString()} view` },
-            { label: 'TB/ngày', value: `${Math.floor(totalViews / dayCount).toLocaleString()}` },
+            { label: 'Tổng', value: `${sumViewsDaily.toLocaleString()} view` },
+            { label: 'TB/ngày', value: `${Math.floor(sumViewsDaily / dayCount).toLocaleString()}` },
           ]}
           tag="VIEWS"
           tagColor="orange"
@@ -273,10 +324,14 @@ export default function ListingDetailClient({ listing }: { listing: Listing }) {
           title="Doanh thu (USD)"
           stats={[
             { label: 'Tổng', value: `$${totalRevenue.toLocaleString('en', { maximumFractionDigits: 0 })}` },
-            { label: 'Giá TB', value: `$${listing.currentPrice?.toFixed(2) || '—'}` },
+            { label: 'Giá TB', value: listing.currentPrice
+                ? currency === 'USD'
+                  ? `$${listing.currentPrice.toFixed(2)}`
+                  : `${listing.currentPrice.toLocaleString()} ${currency}`
+                : '—' },
           ]}
           tag="REVENUE"
-          tagColor="green"
+          tagColor="purple"
         >
           <Line data={chartData(labels, snapshots.map((s) => s.revenueUsd), 'revenue')} options={chartOptions('revenue')} />
         </ChartCard>
@@ -284,7 +339,7 @@ export default function ListingDetailClient({ listing }: { listing: Listing }) {
           title="Tỷ lệ chuyển đổi"
           stats={[
             { label: 'TB', value: `${avgCvr.toFixed(2)}%` },
-            { label: 'Cao nhất', value: `${Math.max(...rawSnapshots.map((s) => s.viewsDaily > 0 ? (s.soldDaily / s.viewsDaily) * 100 : 0)).toFixed(2)}%` },
+            { label: 'Cao nhất', value: rawSnapshots.length === 0 ? '0%' : `${Math.max(...rawSnapshots.map((s) => s.viewsDaily > 0 ? (s.soldDaily / s.viewsDaily) * 100 : 0)).toFixed(2)}%` },
           ]}
           tag="CVR"
           tagColor="amber"
@@ -333,17 +388,24 @@ function buildData(
   return { snapshots: weeklySnaps, labels: weeklyLabels };
 }
 
-function QuickStat({ label, value, delta }: { label: string; value: string; delta?: number }) {
+function TrendBadge({ delta }: { delta?: number | null }) {
+  if (delta == null || delta === 0) {
+    return <span className="font-mono text-[12px] text-text-2">0%</span>;
+  }
+  return (
+    <span className={`font-mono text-[12px] ${delta > 0 ? 'text-accent-green' : 'text-accent-red'}`}>
+      {delta > 0 ? '↑' : '↓'}{Math.abs(delta).toFixed(1)}%
+    </span>
+  );
+}
+
+function QuickStat({ label, value, delta, color }: { label: string; value: string; delta?: number | null; color?: string }) {
   return (
     <div>
-      <div className="font-mono text-[10px] text-text-2 uppercase tracking-[0.12em] font-semibold mb-1.5">{label}</div>
-      <div className="font-display text-[28px] font-bold flex items-baseline gap-2 tracking-tight">
+      <div className="font-mono text-[10px] uppercase tracking-[0.12em] font-semibold mb-1.5" style={{ color: color ? `${color}99` : '#6b5744' }}>{label}</div>
+      <div className="font-display text-[28px] font-bold flex items-baseline gap-2 tracking-tight" style={color ? { color } : undefined}>
         {value}
-        {delta !== undefined && (
-          <span className={`font-mono text-[12px] ${delta > 0 ? 'text-accent-green' : 'text-accent-red'}`}>
-            {delta > 0 ? '↑' : '↓'}{Math.abs(delta).toFixed(1)}%
-          </span>
-        )}
+        <TrendBadge delta={delta} />
       </div>
     </div>
   );
@@ -351,8 +413,9 @@ function QuickStat({ label, value, delta }: { label: string; value: string; delt
 
 const tagStyles: Record<string, string> = {
   orange: 'bg-orange/10 text-orange',
-  green: 'bg-accent-green/10 text-accent-green',
+  green: 'bg-[#22c55e]/10 text-[#22c55e]',
   amber: 'bg-amber-400/10 text-amber-400',
+  purple: 'bg-[#a855f7]/10 text-[#a855f7]',
 };
 
 function ChartCard({
@@ -361,7 +424,7 @@ function ChartCard({
   title: string;
   stats: { label: string; value: string }[];
   tag: string;
-  tagColor: 'orange' | 'green' | 'amber';
+  tagColor: 'orange' | 'green' | 'amber' | 'purple';
   children: React.ReactNode;
 }) {
   return (
@@ -388,22 +451,10 @@ function ChartCard({
   );
 }
 
-function fmtRevenueListing(n: number) {
-  if (n >= 1000000) return `$${(n / 1000000).toFixed(1)}M`;
-  if (n >= 1000) return `$${(n / 1000).toFixed(1)}K`;
-  return `$${n.toFixed(0)}`;
-}
-
-const LISTING_CURRENCY_CFG: Record<string, (usd: number) => string> = {
-  USD: (v) => v >= 1e6 ? `$${(v/1e6).toFixed(1)}M` : v >= 1e3 ? `$${(v/1e3).toFixed(1)}K` : `$${v.toFixed(0)}`,
-  VND: (v) => { const vnd = v * 25400; return vnd >= 1e9 ? `${(vnd/1e9).toFixed(1)}T₫` : `${(vnd/1e6).toFixed(0)}M₫`; },
-  CAD: (v) => { const c = v * 1.37; return c >= 1e3 ? `CA$${(c/1e3).toFixed(1)}K` : `CA$${c.toFixed(0)}`; },
-  GBP: (v) => { const g = v * 0.79; return g >= 1e3 ? `£${(g/1e3).toFixed(1)}K` : `£${g.toFixed(0)}`; },
-  AUD: (v) => { const a = v * 1.53; return a >= 1e3 ? `A$${(a/1e3).toFixed(1)}K` : `A$${a.toFixed(0)}`; },
-};
-
-function fmtRevenueByCurrency(usd: number, currency: string) {
-  return (LISTING_CURRENCY_CFG[currency] ?? LISTING_CURRENCY_CFG['USD'])(usd);
+function fmtRevenueByCurrency(usd: number, _currency?: string) {
+  if (usd >= 1e6) return `$${(usd / 1e6).toFixed(1)}M`;
+  if (usd >= 1e3) return `$${(usd / 1e3).toFixed(1)}K`;
+  return `$${usd.toFixed(0)}`;
 }
 
 function relativeDate(iso: string) {
@@ -454,10 +505,10 @@ function DetailStatRow({ label, left, right, color }: {
 
 function chartData(labels: string[], data: number[], type: string) {
   const colors: Record<string, { border: string; bg: string }> = {
-    sold: { border: '#f1641e', bg: 'rgba(241,100,30,0.3)' },
-    views: { border: '#f1641e', bg: 'rgba(241,100,30,0.15)' },
-    revenue: { border: '#84cc16', bg: 'rgba(132,204,22,0.18)' },
-    cvr: { border: '#facc15', bg: 'rgba(250,204,21,0.1)' },
+    sold:    { border: '#22c55e', bg: 'rgba(34,197,94,0.2)'   },
+    views:   { border: '#f97316', bg: 'rgba(249,115,22,0.15)' },
+    revenue: { border: '#a855f7', bg: 'rgba(168,85,247,0.15)' },
+    cvr:     { border: '#facc15', bg: 'rgba(250,204,21,0.1)'  },
   };
   const c = colors[type];
   return {
@@ -475,14 +526,13 @@ function chartData(labels: string[], data: number[], type: string) {
       pointHoverBackgroundColor: c.border,
       pointHoverBorderColor: '#fff',
       pointHoverBorderWidth: 2,
-      borderRadius: type === 'sold' ? 4 : 0,
     }],
   };
 }
 
 function chartOptions(type: string): any {
   const borderColors: Record<string, string> = {
-    sold: '#f1641e', views: '#f1641e', revenue: '#84cc16', cvr: '#facc15',
+    sold: '#22c55e', views: '#f97316', revenue: '#a855f7', cvr: '#facc15',
   };
   const border = borderColors[type] || '#f1641e';
   const labelFn = (val: number) => {

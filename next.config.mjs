@@ -1,6 +1,7 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
+  serverExternalPackages: ['@supabase/ssr', '@supabase/supabase-js'],
   images: {
     remotePatterns: [
       { protocol: 'https', hostname: '**.etsystatic.com' },

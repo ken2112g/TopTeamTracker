@@ -108,6 +108,10 @@ interface AppStore {
   toggleAlertRule: (id: string) => void;
   updateAlertThreshold: (id: string, threshold: string) => void;
 
+  // Trigger sidebar refetch
+  sidebarRefreshKey: number;
+  refreshSidebar: () => void;
+
   // Reset
   resetAllData: () => void;
 }
@@ -198,6 +202,9 @@ export const useAppStore = create<AppStore>((set) => ({
     set((state) => ({
       alertRules: state.alertRules.map((r) => (r.id === id ? { ...r, threshold } : r)),
     })),
+
+  sidebarRefreshKey: 0,
+  refreshSidebar: () => set((state) => ({ sidebarRefreshKey: state.sidebarRefreshKey + 1 })),
 
   resetAllData: () =>
     set({

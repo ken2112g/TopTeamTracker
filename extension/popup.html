@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      width: 280px;
+      background: #0c0a09;
+      color: #f5f0eb;
+      font-family: system-ui, -apple-system, sans-serif;
+      font-size: 13px;
+    }
+
+    .header {
+      padding: 14px 16px;
+      border-bottom: 1px solid #2a221d;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .logo {
+      width: 32px; height: 32px;
+      background: #f1641e;
+      border-radius: 9px;
+      display: grid; place-items: center;
+      font-weight: 900; font-size: 16px; color: white;
+      flex-shrink: 0;
+    }
+    .brand { font-weight: 800; font-size: 15px; }
+    .brand span { color: #f1641e; font-style: italic; }
+    .version { font-size: 10px; color: #6b5744; margin-top: 1px; }
+
+    .body { padding: 14px 16px; }
+
+    /* ── User card ── */
+    .user-card {
+      background: #161310;
+      border: 1px solid #2a221d;
+      border-radius: 12px;
+      padding: 12px 14px;
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .user-avatar {
+      width: 36px; height: 36px;
+      border-radius: 50%;
+      background: #f1641e;
+      display: grid; place-items: center;
+      font-weight: 800; font-size: 14px; color: white;
+      flex-shrink: 0;
+      overflow: hidden;
+    }
+    .user-avatar img {
+      width: 100%; height: 100%; object-fit: cover;
+    }
+    .user-info { flex: 1; min-width: 0; }
+    .user-name {
+      font-weight: 700; font-size: 13px;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .user-meta {
+      font-size: 10.5px; color: #6b5744; margin-top: 2px;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .user-badge {
+      font-size: 9.5px; font-weight: 700;
+      padding: 2px 7px; border-radius: 99px;
+      background: #f1641e22; color: #f1641e;
+      border: 1px solid #f1641e33;
+      flex-shrink: 0;
+    }
+    .user-badge.super { background: #a855f722; color: #a855f7; border-color: #a855f733; }
+
+    /* ── Not logged in ── */
+    .not-logged {
+      background: #161310;
+      border: 1px solid #2a221d;
+      border-radius: 12px;
+      padding: 14px;
+      margin-bottom: 12px;
+    }
+    .not-logged-row { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+    .dot-warn {
+      width: 7px; height: 7px; border-radius: 50%;
+      background: #f59e0b;
+      box-shadow: 0 0 5px #f59e0b;
+      flex-shrink: 0;
+    }
+    .not-logged-title { font-weight: 700; font-size: 13px; }
+    .not-logged-desc { font-size: 11.5px; color: #a8978a; line-height: 1.5; }
+
+    /* ── Status card (ready) ── */
+    .status-card {
+      background: #161310;
+      border: 1px solid #2a221d;
+      border-radius: 12px;
+      padding: 12px 14px;
+      margin-bottom: 12px;
+    }
+    .status-row { display: flex; align-items: center; gap: 8px; margin-bottom: 5px; }
+    .dot-ready {
+      width: 7px; height: 7px; border-radius: 50%;
+      background: #84cc16; box-shadow: 0 0 5px #84cc16; flex-shrink: 0;
+    }
+    .status-title { font-weight: 700; font-size: 13px; }
+    .status-desc { font-size: 11.5px; color: #a8978a; line-height: 1.5; }
+
+    .step {
+      display: flex; gap: 10px; align-items: flex-start;
+      padding: 9px 12px;
+      background: #1f1a16; border-radius: 10px;
+      margin-bottom: 7px;
+    }
+    .step-num {
+      width: 20px; height: 20px; border-radius: 50%;
+      background: #f1641e22; border: 1px solid #f1641e44;
+      color: #f1641e; font-size: 11px; font-weight: 800;
+      display: grid; place-items: center; flex-shrink: 0;
+    }
+    .step-text { font-size: 12px; color: #a8978a; line-height: 1.4; }
+    .step-text strong { color: #f5f0eb; }
+
+    .btn-open {
+      display: flex; align-items: center; justify-content: center;
+      width: 100%; padding: 10px;
+      background: #f1641e; color: white;
+      border: none; border-radius: 10px;
+      font-size: 13px; font-weight: 700; font-family: inherit;
+      cursor: pointer; margin-top: 12px; gap: 6px;
+    }
+    .btn-open:hover { background: #ff7a3d; }
+
+    .footer {
+      padding: 9px 16px;
+      border-top: 1px solid #1f1a16;
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .footer-link {
+      font-size: 11px; color: #4a3a2e; text-decoration: underline;
+      background: none; border: none; cursor: pointer; font-family: inherit; padding: 0;
+    }
+    .footer-link:hover { color: #6b5744; }
+
+    /* skeleton pulse */
+    .skeleton {
+      height: 56px; background: #161310;
+      border: 1px solid #2a221d; border-radius: 12px;
+      margin-bottom: 12px; animation: pulse 1.2s ease-in-out infinite;
+    }
+    @keyframes pulse { 0%,100%{opacity:.6} 50%{opacity:1} }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div class="logo">T</div>
+    <div>
+      <div class="brand">TopTeam<span>Tracker</span></div>
+      <div class="version">Extension v2.0 — Add Listings</div>
+    </div>
+  </div>
+
+  <div class="body">
+    <!-- User section: loading → user card / not logged in -->
+    <div id="user-section"><div class="skeleton"></div></div>
+
+    <!-- Ready notice (always shown when logged in) -->
+    <div id="ready-card" class="status-card" style="display:none">
+      <div class="status-row">
+        <div class="dot-ready"></div>
+        <div class="status-title">Extension đã sẵn sàng</div>
+      </div>
+      <div class="status-desc">
+        Truy cập Etsy, tìm sản phẩm và nhấn <strong style="color:#f1641e">☑ checkbox</strong> để thêm vào TopTeamTracker.
+      </div>
+    </div>
+
+    <div style="font-size:11px;color:#6b5744;text-transform:uppercase;letter-spacing:0.1em;margin-bottom:8px;font-weight:600">
+      Cách sử dụng
+    </div>
+
+    <div class="step">
+      <div class="step-num">1</div>
+      <div class="step-text"><strong>Mở Etsy</strong> và tìm kiếm sản phẩm bạn muốn theo dõi</div>
+    </div>
+    <div class="step">
+      <div class="step-num">2</div>
+      <div class="step-text"><strong>Tick chọn</strong> các listing (checkbox góc trái mỗi card)</div>
+    </div>
+    <div class="step">
+      <div class="step-num">3</div>
+      <div class="step-text"><strong>Nhấn "Lưu vào TopTeamTracker"</strong> trên thanh toolbar xuất hiện</div>
+    </div>
+
+    <button class="btn-open" id="btn-open">↗ Mở TopTeamTracker</button>
+  </div>
+
+  <div class="footer">
+    <button class="footer-link" id="btn-admin">Admin Panel →</button>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>

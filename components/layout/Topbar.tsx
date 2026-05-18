@@ -8,7 +8,7 @@ export default function Topbar() {
   const { setAddModalOpen, showToast } = useAppStore();
 
   return (
-    <div className="flex items-center gap-3 px-9 py-3 border-b border-line bg-bg-1/60 backdrop-blur-xl sticky top-0 z-10">
+    <div className="flex items-center gap-3 px-9 py-3 border-b border-line bg-bg-1/60 backdrop-blur-xl fixed top-0 left-[260px] right-0 z-10">
       <div className="flex-1" />
 
       <button onClick={() => setAddModalOpen(true)} className="btn btn-primary text-[13px]">

@@ -7,10 +7,15 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
+    "migrate": "node scripts/migrate-constraints.mjs",
     "cookie:refresh": "node scripts/refresh-cookie.mjs",
-    "daemon": "node services/scraper-daemon.mjs"
+    "daemon": "node services/harvest-daemon.mjs --daemon",
+    "harvest:now": "node services/harvest-daemon.mjs",
+    "harvest:setup": "node services/setup-profiles.mjs",
+    "chrome": "scripts\\chrome-debug.bat"
   },
   "dependencies": {
+    "@supabase/ssr": "^0.5.2",
     "@supabase/supabase-js": "^2.105.4",
     "chart.js": "^4.4.6",
     "cheerio": "^1.2.0",
