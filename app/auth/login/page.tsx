@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Eye, EyeOff, LogIn, CheckCircle2, AlertCircle, Download, Puzzle } from 'lucide-react';
+import { Eye, EyeOff, LogIn, CheckCircle2, Download, Puzzle } from 'lucide-react';
 import { getSupabaseClient } from '@/lib/supabase/client';
 
 const DRIVE_LINK = 'https://drive.google.com/drive/folders/1LfYtmEAFavEKCpWh418896GhGMzXXiCm?usp=sharing';
@@ -17,16 +17,17 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
   const [extInstalled, setExtInstalled] = useState<boolean | null>(null);
-  const [extWarning, setExtWarning] = useState(false);
 
   useEffect(() => {
-    const t = setTimeout(() => {
+    const check = () => {
       setExtInstalled(document.documentElement.getAttribute('data-ttt-ext') === 'true');
-    }, 700);
+    };
+    check();
+    const t = setTimeout(check, 1000);
     return () => clearTimeout(t);
   }, []);
 
-  const proceedLogin = async () => {
+  const handleLogin = async () => {
     setError('');
     setLoading(true);
     const supabase = getSupabaseClient();
@@ -63,19 +64,7 @@ export default function LoginPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!extInstalled && extInstalled !== null) {
-      setExtWarning(true);
-      return;
-    }
-    await proceedLogin();
-  };
-
-  const handleGoogleClick = () => {
-    if (!extInstalled && extInstalled !== null) {
-      setExtWarning(true);
-      return;
-    }
-    handleGoogle();
+    await handleLogin();
   };
 
   return (
@@ -129,38 +118,13 @@ export default function LoginPage() {
           </div>
         )}
 
-        {/* Ext warning modal — chưa cài nhưng cố login */}
-        {extWarning && (
-          <div className="mb-4 rounded-2xl border border-red-500/30 bg-red-500/8 p-4">
-            <div className="flex items-start gap-3">
-              <AlertCircle size={18} className="text-red-400 flex-shrink-0 mt-0.5" />
-              <div className="flex-1">
-                <div className="font-semibold text-[13.5px] text-red-400 mb-1">Chưa cài Extension!</div>
-                <div className="text-[12px] text-text-2 mb-3">
-                  Không có extension thì không lấy được dữ liệu Etsy. Bạn có muốn tiếp tục đăng nhập không?
-                </div>
-                <div className="flex gap-2">
-                  <a href={DRIVE_LINK} target="_blank" rel="noopener noreferrer"
-                    className="flex-1 text-center px-3 py-1.5 rounded-lg bg-orange text-white text-[12px] font-semibold hover:bg-orange-bright transition-colors">
-                    Cài Extension trước
-                  </a>
-                  <button onClick={() => { setExtWarning(false); proceedLogin(); }}
-                    className="flex-1 px-3 py-1.5 rounded-lg border border-line text-text-2 text-[12px] hover:border-text-1 transition-colors">
-                    Vẫn đăng nhập
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-
         <div className="card p-8">
           <h1 className="font-display text-[26px] font-bold mb-1">Đăng nhập</h1>
           <p className="text-[13.5px] text-text-2 mb-6">Chào mừng trở lại TopTeamTracker.</p>
 
           {/* Google OAuth */}
           <button
-            onClick={handleGoogleClick}
+            onClick={handleGoogle}
             disabled={googleLoading || loading}
             className="w-full flex items-center justify-center gap-3 px-4 py-3 rounded-[12px] bg-white hover:bg-gray-50 text-gray-800 font-semibold text-[14px] transition-all shadow-sm border border-gray-200 disabled:opacity-60 disabled:cursor-not-allowed mb-5"
           >

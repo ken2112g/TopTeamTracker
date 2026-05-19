@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { Eye, EyeOff, UserPlus, CheckCircle2, User, Users, ArrowRight, ArrowLeft, Download, Puzzle, AlertCircle } from 'lucide-react';
+import { Eye, EyeOff, UserPlus, CheckCircle2, User, Users, ArrowRight, ArrowLeft, Download, Puzzle } from 'lucide-react';
 import { getSupabaseClient } from '@/lib/supabase/client';
 
 const DRIVE_LINK = 'https://drive.google.com/drive/folders/1LfYtmEAFavEKCpWh418896GhGMzXXiCm?usp=sharing';
@@ -23,16 +23,18 @@ export default function RegisterPage() {
   const [loading, setLoading] = useState(false);
   const [done, setDone] = useState(false);
   const [extInstalled, setExtInstalled] = useState<boolean | null>(null);
-  const [extWarning, setExtWarning] = useState(false);
 
   useEffect(() => {
-    const t = setTimeout(() => {
+    const check = () => {
       setExtInstalled(document.documentElement.getAttribute('data-ttt-ext') === 'true');
-    }, 700);
+    };
+    check();
+    const t = setTimeout(check, 1000);
     return () => clearTimeout(t);
   }, []);
 
-  const proceedRegister = async () => {
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
     setError('');
     if (password.length < 6) { setError('Mật khẩu phải có ít nhất 6 ký tự'); return; }
     if (password !== confirmPassword) { setError('Mật khẩu xác nhận không khớp'); return; }
@@ -57,15 +59,6 @@ export default function RegisterPage() {
     }
 
     setDone(true);
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!extInstalled && extInstalled !== null) {
-      setExtWarning(true);
-      return;
-    }
-    await proceedRegister();
   };
 
   if (done) {
@@ -138,31 +131,6 @@ export default function RegisterPage() {
           <div className="mb-4 rounded-2xl border border-green-500/30 bg-green-500/8 p-3 flex items-center gap-2.5">
             <CheckCircle2 size={16} className="text-green-400 flex-shrink-0" />
             <span className="text-[13px] text-green-400 font-medium">Extension đã cài — sẵn sàng đăng ký</span>
-          </div>
-        )}
-
-        {/* Ext warning modal — chưa cài nhưng cố đăng ký */}
-        {extWarning && (
-          <div className="mb-4 rounded-2xl border border-red-500/30 bg-red-500/8 p-4">
-            <div className="flex items-start gap-3">
-              <AlertCircle size={18} className="text-red-400 flex-shrink-0 mt-0.5" />
-              <div className="flex-1">
-                <div className="font-semibold text-[13.5px] text-red-400 mb-1">Chưa cài Extension!</div>
-                <div className="text-[12px] text-text-2 mb-3">
-                  Không có extension thì không lấy được dữ liệu Etsy. Bạn có muốn tiếp tục đăng ký không?
-                </div>
-                <div className="flex gap-2">
-                  <a href={DRIVE_LINK} target="_blank" rel="noopener noreferrer"
-                    className="flex-1 text-center px-3 py-1.5 rounded-lg bg-orange text-white text-[12px] font-semibold hover:bg-orange-bright transition-colors">
-                    Cài Extension trước
-                  </a>
-                  <button onClick={() => { setExtWarning(false); proceedRegister(); }}
-                    className="flex-1 px-3 py-1.5 rounded-lg border border-line text-text-2 text-[12px] hover:border-text-1 transition-colors">
-                    Vẫn đăng ký
-                  </button>
-                </div>
-              </div>
-            </div>
           </div>
         )}
 
