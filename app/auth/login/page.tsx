@@ -1,10 +1,12 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Eye, EyeOff, LogIn } from 'lucide-react';
+import { Eye, EyeOff, LogIn, CheckCircle2, AlertCircle, Download, Puzzle } from 'lucide-react';
 import { getSupabaseClient } from '@/lib/supabase/client';
+
+const DRIVE_LINK = 'https://drive.google.com/drive/folders/1LfYtmEAFavEKCpWh418896GhGMzXXiCm?usp=sharing';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -14,51 +16,31 @@ export default function LoginPage() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
+  const [extInstalled, setExtInstalled] = useState<boolean | null>(null);
+  const [extWarning, setExtWarning] = useState(false);
 
-  // ── Google OAuth ───────────────────────────────────────────────────────────
-  const handleGoogle = async () => {
-    setGoogleLoading(true);
-    setError('');
-    const supabase = getSupabaseClient();
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: 'google',
-      options: {
-        redirectTo: `${location.origin}/auth/callback`,
-      },
-    });
-    if (error) { setError(error.message); setGoogleLoading(false); }
-  };
+  useEffect(() => {
+    const t = setTimeout(() => {
+      setExtInstalled(document.documentElement.getAttribute('data-ttt-ext') === 'true');
+    }, 700);
+    return () => clearTimeout(t);
+  }, []);
 
-  // ── Email / Password ───────────────────────────────────────────────────────
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const proceedLogin = async () => {
     setError('');
     setLoading(true);
     const supabase = getSupabaseClient();
-
     let loginEmail = email.trim();
-
-    // Username lookup: if no "@", find email by username in profiles
     if (!loginEmail.includes('@')) {
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('email')
-        .eq('username', loginEmail.toLowerCase())
-        .single();
-      if (!profile?.email) {
-        setError('Tên đăng nhập không tồn tại');
-        setLoading(false);
-        return;
-      }
+      const { data: profile } = await supabase.from('profiles').select('email').eq('username', loginEmail.toLowerCase()).single();
+      if (!profile?.email) { setError('Tên đăng nhập không tồn tại'); setLoading(false); return; }
       loginEmail = profile.email;
     }
-
     const { data: signInData, error } = await supabase.auth.signInWithPassword({ email: loginEmail, password });
     if (error) {
       setError('Email/tên đăng nhập hoặc mật khẩu không đúng');
       setLoading(false);
     } else {
-      // Check super admin → redirect to /admin
       const userId = signInData.user?.id;
       if (userId) {
         const { data: profile } = await supabase.from('profiles').select('is_super_admin').eq('id', userId).single();
@@ -68,13 +50,41 @@ export default function LoginPage() {
     }
   };
 
+  const handleGoogle = async () => {
+    setGoogleLoading(true);
+    setError('');
+    const supabase = getSupabaseClient();
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: { redirectTo: `${location.origin}/auth/callback` },
+    });
+    if (error) { setError(error.message); setGoogleLoading(false); }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!extInstalled && extInstalled !== null) {
+      setExtWarning(true);
+      return;
+    }
+    await proceedLogin();
+  };
+
+  const handleGoogleClick = () => {
+    if (!extInstalled && extInstalled !== null) {
+      setExtWarning(true);
+      return;
+    }
+    handleGoogle();
+  };
+
   return (
     <div className="min-h-screen bg-bg-0 grid place-items-center px-4 py-12">
       <div className="fixed inset-0 opacity-[0.025] pointer-events-none bg-[url('/noise.png')] z-0" />
 
-      <div className="w-full max-w-[420px] relative z-10">
+      <div className="w-full max-w-[440px] relative z-10">
         {/* Brand */}
-        <div className="flex items-center gap-3 mb-10 justify-center">
+        <div className="flex items-center gap-3 mb-8 justify-center">
           <img src="/logo.svg" alt="TopTeamTracker" width={48} height={48} className="rounded-xl shadow-[0_8px_24px_rgba(241,100,30,0.35)] -rotate-[4deg]" />
           <div>
             <div className="font-display font-bold text-[26px] tracking-tight leading-none">
@@ -86,13 +96,71 @@ export default function LoginPage() {
           </div>
         </div>
 
+        {/* Extension status banner */}
+        {extInstalled === false && (
+          <div className="mb-4 rounded-2xl border border-amber/30 bg-amber/8 p-4">
+            <div className="flex items-start gap-3">
+              <Puzzle size={18} className="text-amber flex-shrink-0 mt-0.5" />
+              <div className="flex-1 min-w-0">
+                <div className="font-semibold text-[13.5px] text-amber mb-0.5">Chưa cài Extension Chrome</div>
+                <div className="text-[12px] text-text-2 mb-3 leading-relaxed">
+                  Extension cần thiết để lấy dữ liệu từ Etsy. Cài xong rồi đăng nhập để dùng đầy đủ tính năng.
+                </div>
+                <a
+                  href={DRIVE_LINK}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-amber/15 border border-amber/30 text-amber text-[12px] font-semibold hover:bg-amber/25 transition-colors"
+                >
+                  <Download size={12} />
+                  Tải Extension về
+                </a>
+                <p className="text-[11px] text-text-2 mt-2">
+                  Sau khi cài: <span className="text-text-1">chrome://extensions → bật Developer Mode → Load unpacked</span>
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+        {extInstalled === true && (
+          <div className="mb-4 rounded-2xl border border-green-500/30 bg-green-500/8 p-3 flex items-center gap-2.5">
+            <CheckCircle2 size={16} className="text-green-400 flex-shrink-0" />
+            <span className="text-[13px] text-green-400 font-medium">Extension đã cài — sẵn sàng đăng nhập</span>
+          </div>
+        )}
+
+        {/* Ext warning modal — chưa cài nhưng cố login */}
+        {extWarning && (
+          <div className="mb-4 rounded-2xl border border-red-500/30 bg-red-500/8 p-4">
+            <div className="flex items-start gap-3">
+              <AlertCircle size={18} className="text-red-400 flex-shrink-0 mt-0.5" />
+              <div className="flex-1">
+                <div className="font-semibold text-[13.5px] text-red-400 mb-1">Chưa cài Extension!</div>
+                <div className="text-[12px] text-text-2 mb-3">
+                  Không có extension thì không lấy được dữ liệu Etsy. Bạn có muốn tiếp tục đăng nhập không?
+                </div>
+                <div className="flex gap-2">
+                  <a href={DRIVE_LINK} target="_blank" rel="noopener noreferrer"
+                    className="flex-1 text-center px-3 py-1.5 rounded-lg bg-orange text-white text-[12px] font-semibold hover:bg-orange-bright transition-colors">
+                    Cài Extension trước
+                  </a>
+                  <button onClick={() => { setExtWarning(false); proceedLogin(); }}
+                    className="flex-1 px-3 py-1.5 rounded-lg border border-line text-text-2 text-[12px] hover:border-text-1 transition-colors">
+                    Đăng nhập quá
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
         <div className="card p-8">
           <h1 className="font-display text-[26px] font-bold mb-1">Đăng nhập</h1>
           <p className="text-[13.5px] text-text-2 mb-6">Chào mừng trở lại TopTeamTracker.</p>
 
-          {/* Google OAuth — primary */}
+          {/* Google OAuth */}
           <button
-            onClick={handleGoogle}
+            onClick={handleGoogleClick}
             disabled={googleLoading || loading}
             className="w-full flex items-center justify-center gap-3 px-4 py-3 rounded-[12px] bg-white hover:bg-gray-50 text-gray-800 font-semibold text-[14px] transition-all shadow-sm border border-gray-200 disabled:opacity-60 disabled:cursor-not-allowed mb-5"
           >
@@ -109,14 +177,12 @@ export default function LoginPage() {
             {googleLoading ? 'Đang chuyển hướng...' : 'Tiếp tục với Google'}
           </button>
 
-          {/* Divider */}
           <div className="flex items-center gap-3 mb-5">
             <div className="flex-1 h-px bg-line" />
             <span className="font-mono text-[10.5px] text-text-2 uppercase tracking-wider">Hoặc</span>
             <div className="flex-1 h-px bg-line" />
           </div>
 
-          {/* Email / Password */}
           <form onSubmit={handleSubmit} className="flex flex-col gap-4">
             <div className="flex flex-col gap-1.5">
               <label className="font-mono text-[11px] uppercase tracking-[0.12em] text-text-2">Email hoặc tên đăng nhập</label>

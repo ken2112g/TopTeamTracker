@@ -3,6 +3,9 @@
  * rồi lưu vào chrome.storage.local để popup/content dùng với Bearer auth.
  * (Supabase SSR lưu session trong cookie, không phải localStorage)
  */
+// Đánh dấu extension đã cài — trang web đọc attribute này để biết
+document.documentElement.setAttribute('data-ttt-ext', 'true');
+
 (async function syncAuth() {
   try {
     const res = await fetch('https://topteamtracker.id.vn/api/extension/token', {
