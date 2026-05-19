@@ -83,3 +83,70 @@ function escHtml(str) {
 }
 
 loadUser();
+
+// ── Reset Etsy cookies ────────────────────────────────────────────────────────
+const btnReset = document.getElementById('btn-reset-etsy');
+const confirmRow = document.getElementById('confirm-row');
+const confirmYes = document.getElementById('confirm-yes');
+const confirmNo = document.getElementById('confirm-no');
+
+btnReset.addEventListener('click', () => {
+  btnReset.classList.add('danger');
+  btnReset.textContent = '⚠️ Sẽ đăng xuất Etsy. Chắc chắn xóa?';
+  confirmRow.style.display = 'flex';
+});
+
+confirmNo.addEventListener('click', () => {
+  btnReset.classList.remove('danger');
+  btnReset.innerHTML = '🍪 Làm mới Etsy — Xóa cookie để spy sản phẩm mới';
+  confirmRow.style.display = 'none';
+});
+
+confirmYes.addEventListener('click', async () => {
+  confirmRow.style.display = 'none';
+  btnReset.textContent = '⏳ Đang xóa...';
+  btnReset.disabled = true;
+
+  try {
+    // Lấy tất cả cookie của etsy.com và www.etsy.com
+    const domains = ['.etsy.com', 'www.etsy.com', 'etsy.com'];
+    const allCookies = [];
+    for (const domain of domains) {
+      const cookies = await chrome.cookies.getAll({ domain });
+      allCookies.push(...cookies);
+    }
+
+    // Xóa từng cookie
+    const removals = allCookies.map(cookie => {
+      const protocol = cookie.secure ? 'https' : 'http';
+      const host = cookie.domain.startsWith('.') ? 'www.etsy.com' : cookie.domain;
+      const url = `${protocol}://${host}${cookie.path}`;
+      return chrome.cookies.remove({ url, name: cookie.name });
+    });
+    await Promise.allSettled(removals);
+
+    // Reload tab Etsy đang mở (nếu có)
+    const tabs = await chrome.tabs.query({ url: '*://*.etsy.com/*' });
+    if (tabs.length > 0) {
+      await chrome.tabs.reload(tabs[0].id);
+    }
+
+    btnReset.classList.remove('danger');
+    btnReset.classList.add('success');
+    btnReset.textContent = `✅ Đã xóa ${allCookies.length} cookies — Etsy đã được làm mới!`;
+    btnReset.disabled = false;
+
+    // Reset về trạng thái ban đầu sau 4 giây
+    setTimeout(() => {
+      btnReset.classList.remove('success');
+      btnReset.innerHTML = '🍪 Làm mới Etsy — Xóa cookie để spy sản phẩm mới';
+    }, 4000);
+  } catch (err) {
+    btnReset.classList.remove('danger');
+    btnReset.textContent = '❌ Lỗi: ' + (err.message ?? 'Không xóa được');
+    btnReset.disabled = false;
+    setTimeout(() => {
+      btnReset.innerHTML = '🍪 Làm mới Etsy — Xóa cookie để spy sản phẩm mới';
+    }, 3000);
+  }
+});

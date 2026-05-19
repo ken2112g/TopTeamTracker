@@ -144,6 +144,39 @@
       margin-bottom: 12px; animation: pulse 1.2s ease-in-out infinite;
     }
     @keyframes pulse { 0%,100%{opacity:.6} 50%{opacity:1} }
+
+    /* ── Reset Etsy section ── */
+    .reset-section {
+      padding: 10px 16px 12px;
+      border-top: 1px solid #1f1a16;
+    }
+    .reset-label {
+      font-size: 10px; color: #4a3a2e;
+      text-transform: uppercase; letter-spacing: 0.1em;
+      font-weight: 600; margin-bottom: 7px;
+    }
+    .btn-reset {
+      display: flex; align-items: center; justify-content: center; gap: 7px;
+      width: 100%; padding: 9px 12px;
+      background: transparent; border: 1px solid #2a221d;
+      border-radius: 10px; color: #a8978a;
+      font-size: 12px; font-weight: 600; font-family: inherit;
+      cursor: pointer; transition: all 0.15s;
+    }
+    .btn-reset:hover { border-color: #f59e0b55; color: #f59e0b; background: #f59e0b0a; }
+    .btn-reset.danger { border-color: #ef444455; color: #ef4444; background: #ef44440a; }
+    .btn-reset.success { border-color: #22c55e55; color: #22c55e; background: #22c55e0a; cursor: default; }
+    .confirm-row {
+      display: flex; gap: 6px; margin-top: 7px;
+    }
+    .confirm-row button {
+      flex: 1; padding: 8px; border-radius: 9px;
+      font-size: 12px; font-weight: 700; font-family: inherit; cursor: pointer;
+    }
+    .confirm-yes { background: #ef4444; border: none; color: white; }
+    .confirm-yes:hover { background: #dc2626; }
+    .confirm-no { background: transparent; border: 1px solid #2a221d; color: #a8978a; }
+    .confirm-no:hover { border-color: #4a3a2e; }
   </style>
 </head>
 <body>
@@ -194,6 +227,18 @@
     </div>
 
     <button class="btn-open" id="btn-open">↗ Mở TopTeamTracker</button>
+  </div>
+
+  <!-- Reset Etsy cookies -->
+  <div class="reset-section">
+    <div class="reset-label">Công cụ spy</div>
+    <button class="btn-reset" id="btn-reset-etsy">
+      🍪 Làm mới Etsy — Xóa cookie để spy sản phẩm mới
+    </button>
+    <div class="confirm-row" id="confirm-row" style="display:none">
+      <button class="confirm-yes" id="confirm-yes">Xóa & Reload</button>
+      <button class="confirm-no" id="confirm-no">Thôi</button>
+    </div>
   </div>
 
   <div class="footer">
