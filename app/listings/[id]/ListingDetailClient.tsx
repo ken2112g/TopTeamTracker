@@ -49,8 +49,12 @@ export default function ListingDetailClient({ listing }: { listing: Listing }) {
   const totalSold = sumSoldDaily;
   const totalViews = sumViewsDaily;
   const totalRevenue = lastSnap?.revenueUsd || 0;
-  // CVR dùng lifetime totals từ HeyEtsy (cùng time horizon → con số có nghĩa)
-  const avgCvr = heyViewsTotal > 0 ? (heySoldTotal / heyViewsTotal) * 100 : 0;
+  // CVR: dùng lifetime nếu có, fallback sang 24h khi listing mới chỉ có daily data
+  const avgCvr = heyViewsTotal > 0 && heySoldTotal > 0
+    ? (heySoldTotal / heyViewsTotal) * 100
+    : heyViewsDaily > 0 && heySoldDaily > 0
+      ? (heySoldDaily / heyViewsDaily) * 100
+      : 0;
   const dayCount = rawSnapshots.length || 1;
 
   // Delta: so sánh kỳ hiện tại với kỳ trước đó cùng độ dài
@@ -247,9 +251,9 @@ export default function ListingDetailClient({ listing }: { listing: Listing }) {
         <div className="flex gap-6 flex-wrap items-start">
           {/* 2×2 badge grid — shrink-0 so it never expands */}
           <div className="grid grid-cols-2 gap-2 shrink-0">
-            <HeyBadge icon={<Star size={11} />} label={`${heySoldDaily}+ Sold`} color="#22c55e" />
-            <HeyBadge icon={<Eye size={11} />} label={`${heyViewsDaily}+ Views`} color="#f97316" />
-            <HeyBadge icon={<ShoppingBag size={11} />} label={heySoldTotal.toLocaleString() + ' Sold'} color="#3b82f6" />
+            {heySoldDaily > 0 && <HeyBadge icon={<Star size={11} />} label={`${heySoldDaily}+ Sold/24h`} color="#22c55e" />}
+            {heySoldTotal > 0 && <HeyBadge icon={<ShoppingBag size={11} />} label={heySoldTotal.toLocaleString() + ' Sold'} color="#3b82f6" />}
+            {heyViewsDaily > 0 && <HeyBadge icon={<Eye size={11} />} label={`${heyViewsDaily}+ Views/24h`} color="#f97316" />}
             <HeyBadge icon={<DollarSign size={11} />} label={fmtRevenueByCurrency(heyRevenue, 'USD')} color="#a855f7" />
           </div>
 

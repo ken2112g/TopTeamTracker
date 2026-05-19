@@ -123,9 +123,9 @@ function extractHeyWidget(card) {
     }
   }
 
-  const hasData = soldTotal > 0 || viewsTotal > 0 || favorites > 0 || revenue > 0 || viewsAvg > 0;
+  const hasData = soldTotal > 0 || soldDaily > 0 || viewsTotal > 0 || favorites > 0 || revenue > 0 || viewsAvg > 0;
   if (!hasData) return null;
-  if (soldTotal === 0 && soldDaily > 0) { soldTotal = soldDaily; soldDaily = 0; }
+  // Không copy soldDaily → soldTotal: giữ đúng nguồn gốc số liệu
   if (soldDaily > 0 && soldTotal > 0 && soldDaily > soldTotal) {
     [soldDaily, soldTotal] = [soldTotal, soldDaily];
   }
