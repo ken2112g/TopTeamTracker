@@ -1,9 +1,11 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { Eye, EyeOff, UserPlus, CheckCircle2, User, Users, ArrowRight, ArrowLeft } from 'lucide-react';
+import { Eye, EyeOff, UserPlus, CheckCircle2, User, Users, ArrowRight, ArrowLeft, Download, Puzzle, AlertCircle } from 'lucide-react';
 import { getSupabaseClient } from '@/lib/supabase/client';
+
+const DRIVE_LINK = 'https://drive.google.com/drive/folders/1LfYtmEAFavEKCpWh418896GhGMzXXiCm?usp=sharing';
 
 type Step = 'choose-type' | 'fill-details';
 type AccountType = 'personal' | 'team';
@@ -20,9 +22,17 @@ export default function RegisterPage() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [done, setDone] = useState(false);
+  const [extInstalled, setExtInstalled] = useState<boolean | null>(null);
+  const [extWarning, setExtWarning] = useState(false);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  useEffect(() => {
+    const t = setTimeout(() => {
+      setExtInstalled(document.documentElement.getAttribute('data-ttt-ext') === 'true');
+    }, 700);
+    return () => clearTimeout(t);
+  }, []);
+
+  const proceedRegister = async () => {
     setError('');
     if (password.length < 6) { setError('Mật khẩu phải có ít nhất 6 ký tự'); return; }
     if (password !== confirmPassword) { setError('Mật khẩu xác nhận không khớp'); return; }
@@ -47,6 +57,15 @@ export default function RegisterPage() {
     }
 
     setDone(true);
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!extInstalled && extInstalled !== null) {
+      setExtWarning(true);
+      return;
+    }
+    await proceedRegister();
   };
 
   if (done) {
@@ -77,7 +96,7 @@ export default function RegisterPage() {
 
       <div className="w-full max-w-[460px] relative z-10">
         {/* Brand */}
-        <div className="flex items-center gap-3 mb-10 justify-center">
+        <div className="flex items-center gap-3 mb-8 justify-center">
           <img src="/logo.svg" alt="TopTeamTracker" width={48} height={48} className="rounded-xl shadow-[0_8px_24px_rgba(241,100,30,0.35)] -rotate-[4deg]" />
           <div>
             <div className="font-display font-bold text-[26px] tracking-tight leading-none">
@@ -88,6 +107,64 @@ export default function RegisterPage() {
             </div>
           </div>
         </div>
+
+        {/* Extension status banner */}
+        {extInstalled === false && (
+          <div className="mb-4 rounded-2xl border border-amber/30 bg-amber/8 p-4">
+            <div className="flex items-start gap-3">
+              <Puzzle size={18} className="text-amber flex-shrink-0 mt-0.5" />
+              <div className="flex-1 min-w-0">
+                <div className="font-semibold text-[13.5px] text-amber mb-0.5">Chưa cài Extension Chrome</div>
+                <div className="text-[12px] text-text-2 mb-3 leading-relaxed">
+                  Extension cần thiết để lấy dữ liệu từ Etsy. Cài xong rồi đăng ký để dùng đầy đủ tính năng.
+                </div>
+                <a
+                  href={DRIVE_LINK}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-amber/15 border border-amber/30 text-amber text-[12px] font-semibold hover:bg-amber/25 transition-colors"
+                >
+                  <Download size={12} />
+                  Tải Extension về
+                </a>
+                <p className="text-[11px] text-text-2 mt-2">
+                  Sau khi cài: <span className="text-text-1">chrome://extensions → bật Developer Mode → Load unpacked</span>
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+        {extInstalled === true && (
+          <div className="mb-4 rounded-2xl border border-green-500/30 bg-green-500/8 p-3 flex items-center gap-2.5">
+            <CheckCircle2 size={16} className="text-green-400 flex-shrink-0" />
+            <span className="text-[13px] text-green-400 font-medium">Extension đã cài — sẵn sàng đăng ký</span>
+          </div>
+        )}
+
+        {/* Ext warning modal — chưa cài nhưng cố đăng ký */}
+        {extWarning && (
+          <div className="mb-4 rounded-2xl border border-red-500/30 bg-red-500/8 p-4">
+            <div className="flex items-start gap-3">
+              <AlertCircle size={18} className="text-red-400 flex-shrink-0 mt-0.5" />
+              <div className="flex-1">
+                <div className="font-semibold text-[13.5px] text-red-400 mb-1">Chưa cài Extension!</div>
+                <div className="text-[12px] text-text-2 mb-3">
+                  Không có extension thì không lấy được dữ liệu Etsy. Bạn có muốn tiếp tục đăng ký không?
+                </div>
+                <div className="flex gap-2">
+                  <a href={DRIVE_LINK} target="_blank" rel="noopener noreferrer"
+                    className="flex-1 text-center px-3 py-1.5 rounded-lg bg-orange text-white text-[12px] font-semibold hover:bg-orange-bright transition-colors">
+                    Cài Extension trước
+                  </a>
+                  <button onClick={() => { setExtWarning(false); proceedRegister(); }}
+                    className="flex-1 px-3 py-1.5 rounded-lg border border-line text-text-2 text-[12px] hover:border-text-1 transition-colors">
+                    Đăng ký quá
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
         <div className="card p-8">
           {/* Progress dots */}
