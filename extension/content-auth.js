@@ -1,19 +1,21 @@
 /**
- * Chạy trên topteamtracker.id.vn — đọc Supabase session từ localStorage
- * và lưu access_token vào chrome.storage.local để popup/content dùng.
+ * Chạy trên topteamtracker.id.vn — gọi API để lấy access_token từ session cookie
+ * rồi lưu vào chrome.storage.local để popup/content dùng với Bearer auth.
+ * (Supabase SSR lưu session trong cookie, không phải localStorage)
  */
-(function syncAuth() {
+(async function syncAuth() {
   try {
-    const key = Object.keys(localStorage).find(
-      k => k.startsWith('sb-') && k.endsWith('-auth-token')
-    );
-    if (!key) { chrome.storage.local.remove('ttt_access_token'); return; }
-    const session = JSON.parse(localStorage.getItem(key) || '{}');
-    const token = session?.access_token ?? null;
+    const res = await fetch('https://topteamtracker.id.vn/api/extension/token', {
+      credentials: 'include',
+    });
+    if (!res.ok) { chrome.storage.local.remove('ttt_access_token'); return; }
+    const { token } = await res.json();
     if (token) {
       chrome.storage.local.set({ ttt_access_token: token });
     } else {
       chrome.storage.local.remove('ttt_access_token');
     }
-  } catch {}
+  } catch {
+    chrome.storage.local.remove('ttt_access_token');
+  }
 })();
