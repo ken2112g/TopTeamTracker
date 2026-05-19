@@ -158,7 +158,7 @@ export default function RegisterPage() {
                   </a>
                   <button onClick={() => { setExtWarning(false); proceedRegister(); }}
                     className="flex-1 px-3 py-1.5 rounded-lg border border-line text-text-2 text-[12px] hover:border-text-1 transition-colors">
-                    Đăng ký quá
+                    Vẫn đăng ký
                   </button>
                 </div>
               </div>

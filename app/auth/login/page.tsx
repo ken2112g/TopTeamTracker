@@ -146,7 +146,7 @@ export default function LoginPage() {
                   </a>
                   <button onClick={() => { setExtWarning(false); proceedLogin(); }}
                     className="flex-1 px-3 py-1.5 rounded-lg border border-line text-text-2 text-[12px] hover:border-text-1 transition-colors">
-                    Đăng nhập quá
+                    Vẫn đăng nhập
                   </button>
                 </div>
               </div>

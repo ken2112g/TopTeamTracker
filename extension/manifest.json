@@ -24,7 +24,7 @@
     {
       "matches": ["https://topteamtracker.id.vn/*"],
       "js": ["content-auth.js"],
-      "run_at": "document_idle"
+      "run_at": "document_start"
     }
   ]
 }
