@@ -13,7 +13,7 @@ module.exports = {
       env: {
         NODE_ENV:             'production',
 
-        ETSYPULSE_API_URL:    process.env.ETSYPULSE_API_URL   ?? 'http://localhost:3000',
+        ETSYPULSE_API_URL:    process.env.ETSYPULSE_API_URL   ?? 'https://topteamtracker.id.vn',
         HARVEST_TOKEN:        process.env.HARVEST_TOKEN        ?? '',  // lấy từ Admin Panel → Workspace
         HEYETSY_EXT_PATH:     process.env.HEYETSY_EXT_PATH    ?? '',  // VD: C:\heyetsy-ext
         PROFILES_DIR:         process.env.PROFILES_DIR        ?? './chrome-profiles',

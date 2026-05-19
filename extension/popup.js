@@ -1,4 +1,4 @@
-const TOPTEAMTRACKER_URL = 'http://localhost:3000';
+const TOPTEAMTRACKER_URL = 'https://topteamtracker.id.vn';
 
 document.getElementById('btn-open').addEventListener('click', () => {
   chrome.tabs.create({ url: TOPTEAMTRACKER_URL });

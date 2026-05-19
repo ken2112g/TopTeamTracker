@@ -3,7 +3,7 @@
  * Inject vào trang Etsy, đọc HeyEtsy data có sẵn, cho phép chọn listing → lưu vào TopTeamTracker
  */
 
-const TOPTEAMTRACKER_URL = 'http://localhost:3000';
+const TOPTEAMTRACKER_URL = 'https://topteamtracker.id.vn';
 const EMOJIS = ['🎁', '✨', '🌟', '🎨', '🛍️', '💎', '🌈', '🎀', '🏆', '🌺'];
 const COLORS = ['#f1641e', '#a78bfa', '#ef4444', '#84cc16', '#60a5fa', '#facc15', '#ec4899'];
 
@@ -722,7 +722,7 @@ async function saveToTracker(collectionId, collectionName, keyword, color) {
       showToast(`❌ Lỗi: ${json.error ?? 'Không thể lưu'}`, '#ef4444');
     }
   } catch {
-    showToast('❌ TopTeamTracker chưa chạy. Mở http://localhost:3000 trước.', '#ef4444');
+    showToast('❌ TopTeamTracker chưa chạy. Mở https://topteamtracker.id.vn trước.', '#ef4444');
   }
 }
 

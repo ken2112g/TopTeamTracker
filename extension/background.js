@@ -8,7 +8,7 @@
  * trên VPS, quản lý qua Admin Panel tại /admin/harvest.
  */
 
-const TOPTEAMTRACKER_URL = 'http://localhost:3000';
+const TOPTEAMTRACKER_URL = 'https://topteamtracker.id.vn';
 
 // ── Message từ popup ──────────────────────────────────────────────────────────
 chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
