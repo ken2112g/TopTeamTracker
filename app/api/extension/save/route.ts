@@ -55,6 +55,9 @@ export async function POST(req: NextRequest) {
 
     const db = getSupabaseServer();
     const workspaceId = await resolveWorkspaceId(req, body);
+    if (!workspaceId) {
+      return NextResponse.json({ error: 'Unauthorized — no workspace found' }, { status: 401, headers });
+    }
 
     // Tìm hoặc tạo collection
     let colId: string = collectionId;
