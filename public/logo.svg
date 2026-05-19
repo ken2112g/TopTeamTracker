@@ -1,0 +1,15 @@
+<svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="40" height="40" rx="10" fill="url(#grad)"/>
+  <defs>
+    <linearGradient id="grad" x1="0" y1="0" x2="40" y2="40" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#ff7a3d"/>
+      <stop offset="100%" stop-color="#e04e0a"/>
+    </linearGradient>
+  </defs>
+  <!-- Horizontal top bar of T -->
+  <rect x="7" y="9" width="26" height="5" rx="2.5" fill="white"/>
+  <!-- Vertical stem of T -->
+  <rect x="17.5" y="14" width="5" height="11" rx="0" fill="white"/>
+  <!-- Pulse line at bottom — tracking heartbeat -->
+  <polyline points="7,30 12,30 15,24 18,33 21,27 24,30 33,30" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" fill="none" opacity="0.85"/>
+</svg>

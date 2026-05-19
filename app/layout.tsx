@@ -6,7 +6,8 @@ import AddListingModal from '@/components/modals/AddListingModal';
 
 export const metadata: Metadata = {
   title: 'TopTeamTracker — Track · Compare · Win',
-  description: 'Theo dõi và phân tích sản phẩm Etsy theo thời gian'
+  description: 'Theo dõi và phân tích sản phẩm Etsy theo thời gian',
+  icons: { icon: '/logo.svg', apple: '/logo.svg' },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

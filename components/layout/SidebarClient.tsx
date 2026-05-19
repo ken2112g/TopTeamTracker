@@ -54,9 +54,13 @@ export default function SidebarClient({ collections, unreadCount = 0 }: { collec
     <aside className="w-[260px] bg-bg-1/85 backdrop-blur-xl border-r border-line p-7 px-4 flex flex-col gap-1 min-h-screen">
       {/* Brand */}
       <Link href="/" className="flex items-center gap-3 px-2 pb-7 cursor-pointer group">
-        <div className="w-10 h-10 rounded-xl bg-orange grid place-items-center font-display font-extrabold text-white text-xl shadow-[0_6px_16px_rgba(241,100,30,0.3)] -rotate-[4deg] transition-transform duration-500 group-hover:rotate-[8deg] group-hover:scale-110">
-          T
-        </div>
+        <img
+          src="/logo.svg"
+          alt="TopTeamTracker"
+          width={40}
+          height={40}
+          className="flex-shrink-0 shadow-[0_6px_16px_rgba(241,100,30,0.35)] -rotate-[4deg] transition-transform duration-500 group-hover:rotate-[8deg] group-hover:scale-110 rounded-xl"
+        />
         <div>
           <div className="font-display font-bold text-[22px] tracking-tight leading-none">
             TopTeam<span className="text-orange italic">Tracker</span>

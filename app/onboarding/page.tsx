@@ -47,9 +47,7 @@ export default function OnboardingPage() {
       <div className="w-full max-w-[480px] relative z-10">
         {/* Brand */}
         <div className="flex items-center gap-3 mb-10 justify-center">
-          <div className="w-12 h-12 rounded-xl bg-orange grid place-items-center font-display font-extrabold text-white text-2xl shadow-[0_8px_24px_rgba(241,100,30,0.35)] -rotate-[4deg]">
-            T
-          </div>
+          <img src="/logo.svg" alt="TopTeamTracker" width={48} height={48} className="rounded-xl shadow-[0_8px_24px_rgba(241,100,30,0.35)] -rotate-[4deg]" />
           <div>
             <div className="font-display font-bold text-[26px] tracking-tight leading-none">
               TopTeam<span className="text-orange italic">Tracker</span>

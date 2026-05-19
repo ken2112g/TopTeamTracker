@@ -33,9 +33,7 @@ export default function AdminSidebar() {
       {/* Logo */}
       <div className="px-5 py-5 border-b border-line">
         <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-lg bg-orange grid place-items-center font-display font-extrabold text-white text-sm shadow-[0_4px_12px_rgba(241,100,30,0.4)]">
-            T
-          </div>
+          <img src="/logo.svg" alt="TopTeamTracker" width={32} height={32} className="rounded-lg shadow-[0_4px_12px_rgba(241,100,30,0.4)]" />
           <div>
             <div className="font-display font-bold text-[13px] leading-none">
               TopTeam<span className="text-orange italic">Tracker</span>
