@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "TopTeamTracker",
-  "version": "2.2.1",
+  "version": "2.2.2",
   "description": "Chọn listing từ Etsy và lưu vào TopTeamTracker để theo dõi",
   "permissions": ["tabs", "storage"],
   "host_permissions": [

@@ -56,76 +56,166 @@ function parseHeyDate(raw) {
   return null;
 }
 
-// ── Parse HeyEtsy widget từ DOM card ──────────────────────────────────────────
+// ── Parse HeyEtsy widget từ DOM card — hỗ trợ tất cả Card Styles ─────────────
 function extractHeyWidget(card) {
   const container = card.querySelector('[data-heyetsy-listing-id]');
-  if (!container) {
-    // Debug: log thử các selector khác để tìm HeyEtsy container
-    const anyHey = card.querySelector('[class*="heyetsy"],[id*="heyetsy"],[data-hey]');
-    if (anyHey) console.log('[EtsyPulse] HeyEtsy element found but wrong selector:', anyHey.tagName, anyHey.className, anyHey.id, JSON.stringify(anyHey.dataset));
-    return null;
-  }
+  if (!container) return null;
 
   let soldDaily = 0, viewsDaily = 0, soldTotal = 0, revenue = 0;
   let viewsAvg = 0, viewsTotal = 0, favRate = 0, favorites = 0;
   let created = null, updated = null, revenueCurrency = 'USD', country = null;
 
-  for (const icon of container.querySelectorAll('.heyetsy-icon')) {
-    const tooltipEl = icon.querySelector('.heyetsy-tooltip');
-    const label = (tooltipEl?.innerText ?? tooltipEl?.textContent ?? '').trim().toLowerCase();
-    const paraEl = icon.querySelector('p');
-    const valueEl = paraEl ?? tooltipEl?.nextElementSibling;
-    const raw = (valueEl?.innerText ?? valueEl?.textContent ?? '').trim();
-    const stripped = raw.replace(/\+[^0-9]*$/, '').replace(/[^0-9.km]/gi, '');
-    const num = /k$/i.test(stripped)
-      ? parseFloat(stripped) * 1000
-      : /m$/i.test(stripped) ? parseFloat(stripped) * 1_000_000 : parseFloat(stripped) || 0;
+  function parseNum(raw) {
+    if (!raw) return 0;
+    const s = String(raw).replace(/\+.*$/, '').replace(/[^0-9.km]/gi, '');
+    return /k$/i.test(s) ? parseFloat(s) * 1000
+      : /m$/i.test(s) ? parseFloat(s) * 1e6
+      : parseFloat(s) || 0;
+  }
 
-    if (label.includes('sold') && label.includes('24')) soldDaily = num;
-    else if (label.includes('total') && (label.includes('sales') || label.includes('sold'))) soldTotal = num;
-    else if (label.includes('view') && label.includes('24')) viewsDaily = num;
-    else if (label.includes('revenue')) {
-      const cur = raw.match(/\b(USD|EUR|GBP|CAD|AUD|VND|JPY)\b/i)?.[1]?.toUpperCase();
-      revenueCurrency = cur ?? 'USD';
-      revenue = raw === 'N/A' ? 0 : num;
+  // Nhận diện chuỗi là giá trị số (metric value)
+  function isValueLike(s) {
+    const t = (s ?? '').trim();
+    return /^[+\-$€£¥]?[\d,.]+[kKmM+%]?$/.test(t) || /^N\/A$/i.test(t);
+  }
+
+  // Nhận diện chuỗi là nhãn metric
+  function isLabelLike(s) {
+    const l = (s ?? '').toLowerCase();
+    return l.length > 2 && (
+      l.includes('sold') || l.includes('sale') || l.includes('view')
+      || l.includes('revenue') || l.includes('fav') || l.includes('creat')
+      || l.includes('updat') || l.includes('renew') || l.includes('country')
+      || l.includes('avg') || l.includes('average') || l.includes('daily')
+      || l.includes('lifetime') || l.includes('total')
+    );
+  }
+
+  // Áp dụng cặp (label, value) vào các biến — chỉ set nếu chưa có giá trị
+  function applyPair(rawLabel, rawValue) {
+    const l = rawLabel.toLowerCase().trim();
+    const v = (rawValue ?? '').trim();
+    if (!l) return;
+
+    // Sold daily (24h)
+    if ((l.includes('sold') || l.includes('sale')) &&
+        (l.includes('24') || l.includes('day') || l.includes('today') || l.includes('hour'))) {
+      if (!soldDaily) soldDaily = parseNum(v);
     }
-    else if (label.includes('average') && label.includes('view')) viewsAvg = num;
-    else if (label.includes('total') && label.includes('view')) viewsTotal = num;
-    else if (label.includes('rate of favorites') || (label.includes('favorites') && label.includes('rate'))) {
-      favRate = parseFloat(raw.replace(/[^0-9.]/g, '')) || 0;
+    // Total sold / lifetime sales
+    else if (/total\s*(sale|sold)|lifetime\s*(sale|sold)/.test(l)) {
+      if (!soldTotal) soldTotal = parseNum(v);
     }
-    else if (label.includes('number of favorites') || (label.includes('total') && label.includes('favorites'))) favorites = num;
-    else if (label.includes('creat')) {
-      const d = raw.match(/\d{1,2}\/\d{1,2}\/\d{4}/) ?? raw.match(/\d{4}-\d{2}-\d{2}/);
-      created = d?.[0] ?? (raw.length > 0 ? raw : null);
+    // "Sales" / "Sold" không có qualifier → total
+    else if ((l.includes('sold') || l.includes('sale')) && !soldTotal) {
+      soldTotal = parseNum(v);
     }
-    else if (label.includes('updat') || label.includes('renew')) {
-      updated = raw || null;
+    // Views daily (24h)
+    else if (l.includes('view') &&
+             (l.includes('24') || l.includes('day') || l.includes('today') || l.includes('hour'))) {
+      if (!viewsDaily) viewsDaily = parseNum(v);
     }
-    else if (label.includes("seller's country") || label.includes('country')) {
-      country = label.match(/country[:\s]+(.+)/i)?.[1]?.trim() ?? raw.trim() ?? null;
+    // Total views
+    else if (l.includes('total') && l.includes('view')) {
+      if (!viewsTotal) viewsTotal = parseNum(v);
+    }
+    // Average views
+    else if ((l.includes('avg') || l.includes('average')) && l.includes('view')) {
+      if (!viewsAvg) viewsAvg = parseNum(v);
+    }
+    // "Views" không có qualifier → total
+    else if (l.includes('view') && !viewsTotal) {
+      viewsTotal = parseNum(v);
+    }
+    // Revenue
+    else if (l.includes('revenue')) {
+      const cur = v.match(/\b(USD|EUR|GBP|CAD|AUD|VND|JPY)\b/i)?.[1]?.toUpperCase();
+      if (cur) revenueCurrency = cur;
+      if (!revenue) revenue = /n\/a/i.test(v) ? 0 : parseNum(v);
+    }
+    // Favorites rate
+    else if (l.includes('fav') && (l.includes('rate') || l.includes('%'))) {
+      if (!favRate) favRate = parseFloat(v.replace(/[^0-9.]/g, '')) || 0;
+    }
+    // Favorites count
+    else if (l.includes('fav') && !l.includes('rate')) {
+      if (!favorites) favorites = parseNum(v);
+    }
+    // Created date
+    else if (l.includes('creat')) {
+      if (!created) {
+        const d = v.match(/\d{1,2}\/\d{1,2}\/\d{4}/) ?? v.match(/\d{4}-\d{2}-\d{2}/);
+        created = d?.[0] ?? (v.length > 0 ? v : null);
+      }
+    }
+    // Updated / Renewed
+    else if (l.includes('updat') || l.includes('renew')) {
+      if (!updated) updated = v || null;
+    }
+    // Country
+    else if (l.includes('country')) {
+      if (!country) country = v.trim() || null;
     }
   }
 
-  // ── Fallback: tìm Created/Updated trong toàn bộ text widget ──────────────
-  // HeyEtsy hiển thị các row này trong bảng dưới, không phải icon boxes
-  if (!created || !updated) {
-    const fullText = (container.innerText ?? container.textContent ?? '');
-    if (!created) {
-      // "Created   19/05/2024 (1 year)" hoặc "Created\t19/05/2024"
-      const m = fullText.match(/Created[\s\t]+(\d{1,2}\/\d{1,2}\/\d{4})/i);
-      if (m) created = m[1];
+  // ── Chiến lược 1: .heyetsy-icon — phân loại theo NỘI DUNG thay vì vị trí DOM
+  // Hoạt động với tất cả card styles vì không giả định cấu trúc HTML cụ thể
+  for (const icon of container.querySelectorAll('.heyetsy-icon')) {
+    const textItems = new Set();
+
+    // Thu thập text từ tất cả leaf elements + data attrs
+    icon.querySelectorAll('*').forEach(el => {
+      // Data attributes (tooltip, aria-label, title)
+      [el.title, el.dataset.tooltip, el.getAttribute('aria-label')].forEach(a => {
+        if (a?.trim()) textItems.add(a.trim());
+      });
+      // Chỉ lấy text từ leaf elements (không có element con)
+      if (el.children.length === 0) {
+        const t = (el.innerText ?? el.textContent ?? '').trim();
+        if (t) textItems.add(t);
+      }
+    });
+    // Text nodes trực tiếp của icon
+    [...icon.childNodes].forEach(n => {
+      if (n.nodeType === 3) { const t = n.textContent.trim(); if (t) textItems.add(t); }
+    });
+
+    // Phân loại: chuỗi nào là label, chuỗi nào là value
+    let label = '', value = '';
+    for (const t of textItems) {
+      if (!label && isLabelLike(t)) label = t;
+      else if (!value && isValueLike(t)) value = t;
     }
-    if (!updated) {
-      // "Updated   3 months ago" hoặc "Updated\t10 hours ago"
-      const m = fullText.match(/(?:Updated|Renewed)[\s\t]+([^\n\r]+)/i);
-      if (m) updated = m[1].trim();
-    }
+    if (label) applyPair(label, value);
+  }
+
+  // ── Chiến lược 2: Parse từng dòng innerText — universal fallback mọi style
+  // innerText giữ nguyên thứ tự visual, label và value thường ở dòng liền kề
+  const fullText = container.innerText ?? container.textContent ?? '';
+  const lines = fullText.split(/[\n\r]+/).map(l => l.trim()).filter(Boolean);
+
+  for (let i = 0; i < lines.length; i++) {
+    if (!isLabelLike(lines[i])) continue;
+    // Thử dòng kế (phổ biến hơn) rồi dòng trước
+    const next = lines[i + 1] ?? '';
+    const prev = lines[i - 1] ?? '';
+    const value = (!isLabelLike(next) && next) ? next
+      : (!isLabelLike(prev) && prev) ? prev : '';
+    if (value) applyPair(lines[i], value);
+  }
+
+  // ── Fallback regex cho Created/Updated ────────────────────────────────────
+  if (!created) {
+    const m = fullText.match(/Created[\s\t:]+(\d{1,2}\/\d{1,2}\/\d{4})/i);
+    if (m) created = m[1];
+  }
+  if (!updated) {
+    const m = fullText.match(/(?:Updated|Renewed)[\s\t:]+([^\n\r]+)/i);
+    if (m) updated = m[1].trim();
   }
 
   const hasData = soldTotal > 0 || soldDaily > 0 || viewsTotal > 0 || favorites > 0 || revenue > 0 || viewsAvg > 0;
   if (!hasData) return null;
-  // Không copy soldDaily → soldTotal: giữ đúng nguồn gốc số liệu
   if (soldDaily > 0 && soldTotal > 0 && soldDaily > soldTotal) {
     [soldDaily, soldTotal] = [soldTotal, soldDaily];
   }
