@@ -206,6 +206,6 @@ export async function POST(req: NextRequest) {
       { headers }
     );
   } catch (e: any) {
-    return NextResponse.json({ error: e.message }, { status: 500, headers: CORS });
+    return NextResponse.json({ error: e.message }, { status: 500, headers });
   }
 }
