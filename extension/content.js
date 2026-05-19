@@ -7,6 +7,14 @@ const TOPTEAMTRACKER_URL = 'https://topteamtracker.id.vn';
 const EMOJIS = ['🎁', '✨', '🌟', '🎨', '🛍️', '💎', '🌈', '🎀', '🏆', '🌺'];
 const COLORS = ['#f1641e', '#a78bfa', '#ef4444', '#84cc16', '#60a5fa', '#facc15', '#ec4899'];
 
+async function authHeaders() {
+  return new Promise(resolve => {
+    chrome.storage.local.get('ttt_access_token', ({ ttt_access_token }) => {
+      resolve(ttt_access_token ? { 'Authorization': `Bearer ${ttt_access_token}` } : {});
+    });
+  });
+}
+
 let selected = new Map(); // listingId → data
 let toolbarEl = null;
 let initialized = false;
@@ -196,6 +204,7 @@ function extractCard(card, idx) {
 async function loadTracked() {
   try {
     const res = await fetch(`${TOPTEAMTRACKER_URL}/api/extension/tracked`, {
+      headers: await authHeaders(),
       signal: AbortSignal.timeout(4000),
     });
     if (!res.ok) return;
@@ -375,6 +384,7 @@ async function openSaveDialog() {
   let collections = [];
   try {
     const res = await fetch(`${TOPTEAMTRACKER_URL}/api/extension/collections`, {
+      headers: await authHeaders(),
       signal: AbortSignal.timeout(4000),
     });
     if (res.ok) collections = await res.json();
@@ -673,7 +683,7 @@ async function saveToTracker(collectionId, collectionName, keyword, color) {
   try {
     const res = await fetch(`${TOPTEAMTRACKER_URL}/api/extension/save`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...await authHeaders() },
       body: JSON.stringify({
         collectionId,
         collectionName,

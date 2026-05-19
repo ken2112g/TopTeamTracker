@@ -19,14 +19,7 @@
       align-items: center;
       gap: 10px;
     }
-    .logo {
-      width: 32px; height: 32px;
-      background: #f1641e;
-      border-radius: 9px;
-      display: grid; place-items: center;
-      font-weight: 900; font-size: 16px; color: white;
-      flex-shrink: 0;
-    }
+    .logo { width: 32px; height: 32px; flex-shrink: 0; border-radius: 9px; }
     .brand { font-weight: 800; font-size: 15px; }
     .brand span { color: #f1641e; font-style: italic; }
     .version { font-size: 10px; color: #6b5744; margin-top: 1px; }
@@ -155,7 +148,13 @@
 </head>
 <body>
   <div class="header">
-    <div class="logo">T</div>
+    <svg class="logo" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <rect width="40" height="40" rx="10" fill="url(#g)"/>
+      <defs><linearGradient id="g" x1="0" y1="0" x2="40" y2="40" gradientUnits="userSpaceOnUse"><stop offset="0%" stop-color="#ff7a3d"/><stop offset="100%" stop-color="#e04e0a"/></linearGradient></defs>
+      <rect x="7" y="9" width="26" height="5" rx="2.5" fill="white"/>
+      <rect x="17.5" y="14" width="5" height="11" fill="white"/>
+      <polyline points="7,30 12,30 15,24 18,33 21,27 24,30 33,30" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" fill="none" opacity="0.85"/>
+    </svg>
     <div>
       <div class="brand">TopTeam<span>Tracker</span></div>
       <div class="version">Extension v2.0 — Add Listings</div>

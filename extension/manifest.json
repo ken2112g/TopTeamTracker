@@ -1,12 +1,12 @@
 {
   "manifest_version": 3,
   "name": "TopTeamTracker",
-  "version": "2.0.0",
+  "version": "2.1.0",
   "description": "Chọn listing từ Etsy và lưu vào TopTeamTracker để theo dõi",
-  "permissions": ["tabs"],
+  "permissions": ["tabs", "storage"],
   "host_permissions": [
     "https://*.etsy.com/*",
-    "http://localhost:3000/*"
+    "https://topteamtracker.id.vn/*"
   ],
   "background": {
     "service_worker": "background.js"
@@ -19,6 +19,11 @@
     {
       "matches": ["https://www.etsy.com/search*", "https://www.etsy.com/?*", "https://www.etsy.com/"],
       "js": ["content.js"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": ["https://topteamtracker.id.vn/*"],
+      "js": ["content-auth.js"],
       "run_at": "document_idle"
     }
   ]

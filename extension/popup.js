@@ -7,20 +7,26 @@ document.getElementById('btn-admin').addEventListener('click', () => {
   chrome.tabs.create({ url: `${TOPTEAMTRACKER_URL}/admin` });
 });
 
-// ── Load user info ────────────────────────────────────────────
+async function getToken() {
+  return new Promise(resolve => {
+    chrome.storage.local.get('ttt_access_token', ({ ttt_access_token }) => {
+      resolve(ttt_access_token ?? null);
+    });
+  });
+}
+
 async function loadUser() {
   const section = document.getElementById('user-section');
   const readyCard = document.getElementById('ready-card');
 
   try {
-    const res = await fetch(`${TOPTEAMTRACKER_URL}/api/extension/me`, {
-      credentials: 'include',
-    });
+    const token = await getToken();
+    const headers = token ? { 'Authorization': `Bearer ${token}` } : {};
+    const res = await fetch(`${TOPTEAMTRACKER_URL}/api/extension/me`, { headers });
     const data = await res.json();
     const user = data?.user ?? null;
 
     if (user) {
-      // Build initials
       const initials = (user.name || 'U')
         .split(' ')
         .map(w => w[0])
@@ -45,7 +51,6 @@ async function loadUser() {
           <span class="${badgeClass}">${roleLabel}</span>
         </div>
       `;
-
       readyCard.style.display = '';
     } else {
       showNotLogged(section);

@@ -1,38 +1,54 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseServer } from '@/lib/supabase/server';
+import { getExtensionUser } from '@/lib/api/extension-auth';
 import { createNotification } from '@/lib/actions/notifications';
 import { logActivity } from '@/lib/actions/activities';
 
-const CORS = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Methods': 'POST, OPTIONS',
-  'Access-Control-Allow-Headers': 'Content-Type, X-Harvest-Token',
-};
+function cors(req: NextRequest) {
+  const origin = req.headers.get('origin') ?? '';
+  return {
+    'Access-Control-Allow-Origin': origin.startsWith('chrome-extension://') ? origin : '*',
+    'Access-Control-Allow-Methods': 'POST, OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Harvest-Token',
+    ...(origin.startsWith('chrome-extension://') ? { 'Access-Control-Allow-Credentials': 'true' } : {}),
+  };
+}
 
-export async function OPTIONS() {
-  return new NextResponse(null, { headers: CORS });
+export async function OPTIONS(req: NextRequest) {
+  return new NextResponse(null, { headers: cors(req) });
 }
 
 async function resolveWorkspaceId(req: NextRequest, body: any): Promise<string | null> {
-  // 1. Ưu tiên workspaceId từ body (extension gửi tường minh)
+  // 1. workspaceId tường minh từ body
   if (body.workspaceId) return body.workspaceId;
 
-  // 2. Dùng harvest token từ header để lookup workspace
-  const token = req.headers.get('x-harvest-token');
-  if (token) {
+  // 2. Harvest token từ header (dành cho VPS daemon)
+  const harvestToken = req.headers.get('x-harvest-token');
+  if (harvestToken) {
+    const db = getSupabaseServer();
+    const { data } = await db.from('workspaces').select('id').eq('harvest_token', harvestToken).single();
+    if (data?.id) return data.id;
+  }
+
+  // 3. Bearer token từ extension → lookup workspace của user
+  const userId = await getExtensionUser(req);
+  if (userId) {
     const db = getSupabaseServer();
     const { data } = await db
-      .from('workspaces')
-      .select('id')
-      .eq('harvest_token', token)
+      .from('workspace_members')
+      .select('workspace_id')
+      .eq('user_id', userId)
+      .order('joined_at', { ascending: true })
+      .limit(1)
       .single();
-    if (data?.id) return data.id;
+    if (data?.workspace_id) return data.workspace_id;
   }
 
   return null;
 }
 
 export async function POST(req: NextRequest) {
+  const headers = cors(req);
   try {
     const body = await req.json();
     const { collectionId, collectionName, keyword, color, listings } = body;
@@ -187,7 +203,7 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json(
       { saved, duplicates, failed, collectionName: colName, collectionId: colId },
-      { headers: CORS }
+      { headers }
     );
   } catch (e: any) {
     return NextResponse.json({ error: e.message }, { status: 500, headers: CORS });
